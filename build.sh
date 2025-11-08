@@ -11,7 +11,7 @@ ISO_DIR=./isodir
 
 CFLAGS="-std=gnu99 -ffreestanding -Wall -Wextra -Werror -masm=intel"
 
-if [[ $1 = "debug" ]]
+if [[ $OS_MODE = "debug" ]]
 then
     echo "In debug mode"
     CFLAGS=$CFLAGS" -g -O0"

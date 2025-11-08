@@ -1,6 +1,4 @@
-X Parse multiboot header
-    X Create header structure
-    X Passed in to kernel_main
+- run script
 
 ----------------------------------------------------------------------------------------------------
 Toolchain:
@@ -13,4 +11,3 @@ Kernel:
 - Allocators
 - Interrupts
 - Tests + test runner
-- qemu close window automatically
