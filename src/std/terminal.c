@@ -102,6 +102,35 @@ void terminal_put_uint(unsigned int n) {
     }
 }
 
+void terminal_put_hex(unsigned int n) {
+    if (n == 0) {
+        terminal_put_char('0');
+        return;
+    }
+
+    // unsigned int is at most 0xffffffff, which has 8 digits.
+    char digits[8];
+    size_t num_digits = 0;
+
+    // Digits will print in reverse order if we print them here.
+    while (n > 0) {
+        digits[num_digits] = n & 0xf;
+        num_digits += 1;
+        n >>= 4;
+    }
+
+    // Print the digits the correct direction.
+    for (size_t i = 0; i < num_digits; i++) {
+        char c = digits[num_digits - i - 1];
+        if (c >= 0 && c <= 9) {
+            terminal_put_char(c + '0');
+        }
+        else {
+            terminal_put_char(c - 10 + 'A');
+        }
+    }
+}
+
 void terminal_put_int(int n) {
     if (n == 0) {
         terminal_put_char('0');
@@ -126,6 +155,7 @@ typedef enum {
     FMT_PRINT_CHAR,
     FMT_PRINT_UINT,
     FMT_PRINT_INT,
+    FMT_PRINT_HEX,
 } Fmt_Print_Data_Type;
 
 typedef struct {
@@ -147,6 +177,10 @@ Fmt_Print_Specifier _parse_specifier(char **fmt) {
 
         case 'd':
             specifier.data_type = FMT_PRINT_INT;
+            break;
+
+        case 'x':
+            specifier.data_type = FMT_PRINT_HEX;
             break;
 
         default:
@@ -186,6 +220,11 @@ void terminal_fmt_print_impl(char *fmt, ...) {
                 int next = va_arg(args, int);
                 terminal_put_int(next);
             } break;
+
+            case FMT_PRINT_HEX: {
+                unsigned int next = va_arg(args, unsigned int);
+                terminal_put_hex(next);
+            } break;
             
             default:
                 terminal_write_string("%(UNKNOWN_SPECIFIER)");
@@ -196,6 +235,12 @@ void terminal_fmt_print_impl(char *fmt, ...) {
             terminal_put_char(c);
             p_fmt += 1;
         }
+    }
+
+    int next = va_arg(args, int);
+    while (next) {
+        terminal_write_string(" %(EXTRA_ARGUMENT)");
+        next = va_arg(args, int);
     }
 
     va_end(args);

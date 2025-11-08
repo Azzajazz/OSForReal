@@ -9,7 +9,7 @@ SRC_DIR=./src
 BUILD_DIR=./build
 ISO_DIR=./isodir
 
-CFLAGS="-std=gnu99 -ffreestanding -Wall -Wextra"
+CFLAGS="-std=gnu99 -ffreestanding -Wall -Wextra -Werror"
 
 if [[ $1 = "debug" ]]
 then

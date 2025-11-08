@@ -1,5 +1,6 @@
 X Move VGA code into hal
-- fmt_print
+X fmt_print
+    X Hex printing
     X Start std
         X Sized strings
     X Support newlines in terminal
