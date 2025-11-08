@@ -1,8 +1,9 @@
 X Move VGA code into hal
 - fmt_print
-    - Start std
-        - Sized strings
-    - Support newlines and scrolling in VGA
+    X Start std
+        X Sized strings
+    X Support newlines in terminal
+    X Support scrolling in terminal
 
 ----------------------------------------------------------------------------------------------------
 Toolchain:
