@@ -1,10 +1,7 @@
-X Move VGA code into hal
-X fmt_print
-    X Hex printing
-    X Start std
-        X Sized strings
-    X Support newlines in terminal
-    X Support scrolling in terminal
+X Serial driver
+    X Set up qemu serial port
+    X Connect to serial port
+    X Send something
 
 ----------------------------------------------------------------------------------------------------
 Toolchain:
@@ -12,9 +9,7 @@ Toolchain:
 
 ----------------------------------------------------------------------------------------------------
 Kernel:
-- Serial driver
 - qemu close window automatically
-- Make VGA more robust
 - Parse multiboot header
 - gdt
 - Paging
