@@ -86,6 +86,9 @@ _start:
 	stack since (pushed 0 bytes so far), so the alignment has thus been
 	preserved and the call is well defined.
 	*/
+
+    /* Pass the multiboot information address to kernel_main */
+    push %ebx
 	call kernel_main
 
 	/*

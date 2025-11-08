@@ -1,7 +1,6 @@
-X Serial driver
-    X Set up qemu serial port
-    X Connect to serial port
-    X Send something
+X Parse multiboot header
+    X Create header structure
+    X Passed in to kernel_main
 
 ----------------------------------------------------------------------------------------------------
 Toolchain:
@@ -9,10 +8,9 @@ Toolchain:
 
 ----------------------------------------------------------------------------------------------------
 Kernel:
-- qemu close window automatically
-- Parse multiboot header
 - gdt
 - Paging
 - Allocators
 - Interrupts
 - Tests + test runner
+- qemu close window automatically
