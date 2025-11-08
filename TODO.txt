@@ -1,2 +1,21 @@
+X Move VGA code into hal
+- fmt_print
+    - Start std
+        - Sized strings
+    - Support newlines and scrolling in VGA
+
+----------------------------------------------------------------------------------------------------
 Toolchain:
 - Make automatic toolchain installation script
+
+----------------------------------------------------------------------------------------------------
+Kernel:
+- Serial driver
+- qemu close window automatically
+- Make VGA more robust
+- Parse multiboot header
+- gdt
+- Paging
+- Allocators
+- Interrupts
+- Tests + test runner
