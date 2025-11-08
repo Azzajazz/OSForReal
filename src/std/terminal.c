@@ -66,15 +66,85 @@ void terminal_putchar(char c)
     }
 }
 
-
 void terminal_write(String str) 
 {
 	for (size_t i = 0; i < str.length; i++)
 		terminal_putchar(str.data[i]);
 }
 
-void terminal_writestring(const char* data) 
+void terminal_write_string(char *data) 
 {
     String str = str_literal(data);
 	terminal_write(str);
+}
+
+
+
+// --------------------------------------------------
+// FORMAT PRINTING
+// --------------------------------------------------
+
+typedef enum {
+    FMT_PRINT_UNKNOWN,
+    FMT_PRINT_CHAR,
+    FMT_PRINT_UINT,
+} Fmt_Print_Data_Type;
+
+typedef struct {
+    Fmt_Print_Data_Type data_type;
+} Fmt_Print_Specifier;
+
+Fmt_Print_Specifier _parse_specifier(char **fmt) {
+    Fmt_Print_Specifier specifier = {0};
+    for (;;) {
+        switch (**fmt) {
+        // @TODO: Parse the rest of the specifiers.
+        case 'c':
+            specifier.data_type = FMT_PRINT_CHAR;
+            break;
+
+        case 'u':
+            specifier.data_type = FMT_PRINT_UINT;
+            break;
+
+        default:
+            specifier.data_type = FMT_PRINT_UNKNOWN;
+            break;
+        }
+        *fmt += 1;
+        break;
+    }
+
+    return specifier;
+}
+
+#define terminal_fmt_print(fmt, ...) terminal_fmt_print_impl(fmt, __VA_ARGS__, 0)
+void terminal_fmt_print_impl(char *fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+
+    char *p_fmt = fmt;
+    while (*p_fmt) {
+        char c = *p_fmt;
+        if (c == '%') {
+            p_fmt += 1;
+            Fmt_Print_Specifier specifier = _parse_specifier(&p_fmt);
+            switch (specifier.data_type) {
+            case FMT_PRINT_CHAR:
+                char next = va_arg(args, int);
+                terminal_putchar(next);
+                break;
+            
+            default:
+                terminal_write_string("%(UNKNOWN_SPECIFIER)");
+                break;
+            }
+        }
+        else {
+            terminal_putchar(c);
+            p_fmt += 1;
+        }
+    }
+
+    va_end(args);
 }
