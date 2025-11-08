@@ -13,5 +13,5 @@ void kernel_main(void)
 	/* Initialize terminal interface */
 	terminal_initialize();
 
-	terminal_fmt_print("Line %c %v\n", 'a');
+	terminal_fmt_print_impl("Line %c %u %d %d\n", 'a', 4294967295u, 500, -500);
 }

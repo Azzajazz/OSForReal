@@ -50,7 +50,7 @@ void terminal_putentryat(char c, uint8_t color, size_t x, size_t y)
 	terminal_buffer[index] = vga_entry(c, color);
 }
 
-void terminal_putchar(char c) 
+void terminal_put_char(char c) 
 {
     if (c == '\n') {
         terminal_column = 0;
@@ -69,13 +69,50 @@ void terminal_putchar(char c)
 void terminal_write(String str) 
 {
 	for (size_t i = 0; i < str.length; i++)
-		terminal_putchar(str.data[i]);
+		terminal_put_char(str.data[i]);
 }
 
 void terminal_write_string(char *data) 
 {
     String str = str_literal(data);
 	terminal_write(str);
+}
+
+void terminal_put_uint(unsigned int n) {
+    if (n == 0) {
+        terminal_put_char('0');
+        return;
+    }
+
+    // unsigned int is at most 2^32 - 1 = 4294967295, which has 10 digits.
+    char digits[10];
+    size_t num_digits = 0;
+
+    // Digits will print in reverse order if we print them here.
+    while (n > 0) {
+        digits[num_digits] = n % 10;
+        num_digits += 1;
+        n /= 10;
+    }
+
+    // Print the digits the correct direction.
+    for (size_t i = 0; i < num_digits; i++) {
+        char c = digits[num_digits - i - 1] + '0';
+        terminal_put_char(c);
+    }
+}
+
+void terminal_put_int(int n) {
+    if (n == 0) {
+        terminal_put_char('0');
+        return;
+    }
+
+    if (n < 0) {
+        terminal_put_char('-');
+        n = -n;
+    }
+    terminal_put_uint(n);
 }
 
 
@@ -88,6 +125,7 @@ typedef enum {
     FMT_PRINT_UNKNOWN,
     FMT_PRINT_CHAR,
     FMT_PRINT_UINT,
+    FMT_PRINT_INT,
 } Fmt_Print_Data_Type;
 
 typedef struct {
@@ -105,6 +143,10 @@ Fmt_Print_Specifier _parse_specifier(char **fmt) {
 
         case 'u':
             specifier.data_type = FMT_PRINT_UINT;
+            break;
+
+        case 'd':
+            specifier.data_type = FMT_PRINT_INT;
             break;
 
         default:
@@ -130,10 +172,20 @@ void terminal_fmt_print_impl(char *fmt, ...) {
             p_fmt += 1;
             Fmt_Print_Specifier specifier = _parse_specifier(&p_fmt);
             switch (specifier.data_type) {
-            case FMT_PRINT_CHAR:
+            case FMT_PRINT_CHAR: {
                 char next = va_arg(args, int);
-                terminal_putchar(next);
-                break;
+                terminal_put_char(next);
+            } break;
+
+            case FMT_PRINT_UINT: {
+                unsigned int next = va_arg(args, unsigned int);
+                terminal_put_uint(next);
+            } break;
+
+            case FMT_PRINT_INT: {
+                int next = va_arg(args, int);
+                terminal_put_int(next);
+            } break;
             
             default:
                 terminal_write_string("%(UNKNOWN_SPECIFIER)");
@@ -141,7 +193,7 @@ void terminal_fmt_print_impl(char *fmt, ...) {
             }
         }
         else {
-            terminal_putchar(c);
+            terminal_put_char(c);
             p_fmt += 1;
         }
     }
