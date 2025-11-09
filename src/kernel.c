@@ -33,7 +33,8 @@ void kernel_main(Multiboot_Info *boot_info)
     gdt_init();
     // @Cleanup: Name
 	terminal_initialize();
-    serial_init();
+    bool initted = serial_init();
+    ASSERT(initted, "Serial initialization failed!");
 
     fmt_print("\n");
     fmt_print("%s\n", boot_info->boot_loader_name);
