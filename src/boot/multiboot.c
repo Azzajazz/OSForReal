@@ -28,3 +28,10 @@ typedef struct PACKED {
     uint8_t framebuffer_type;
     uint8_t color_info[6];
 } Multiboot_Info;
+
+typedef struct PACKED {
+    uint32_t size;
+    uint64_t base_addr;
+    uint64_t length;
+    uint32_t type;
+} MMap_Segment;

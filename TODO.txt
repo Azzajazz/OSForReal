@@ -1,10 +1,15 @@
+- Paging
+    - Define page directory
+    - Define page tables
+    - Identity map pages
+    - Try to map something elsewhere?
+
 --------------------------------------------------------------------------------
 Toolchain:
 - Make automatic toolchain installation script
 
 --------------------------------------------------------------------------------
 Kernel:
-- Paging
 - Allocators
 - Interrupts
 - Tests + test runner
