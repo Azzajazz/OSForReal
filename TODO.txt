@@ -1,8 +1,7 @@
 - Paging
-    - Define page directory
-    - Define page tables
-    - Identity map pages
-    - Try to map something elsewhere?
+    - Split bootstrap into a separate section
+    - Identity mapping
+    - Map kernel code to 0xc0000000 and set VMA there.
 
 --------------------------------------------------------------------------------
 Toolchain:

@@ -19,12 +19,12 @@ else
     CFLAGS=$CFLAGS" -O2"
 fi
 
-
 # Build and link the kernel.
 mkdir -p $BUILD_DIR
-$TOOLCHAIN_PREFIX/$TARGET-as $SRC_DIR/boot.s -o $BUILD_DIR/boot.o
+$TOOLCHAIN_PREFIX/$TARGET-as -c $SRC_DIR/boot/boot.s -o $BUILD_DIR/boot.o
+$TOOLCHAIN_PREFIX/$TARGET-gcc -c $SRC_DIR/boot/bootstrap.c -o $BUILD_DIR/bootstrap.o $CFLAGS
 $TOOLCHAIN_PREFIX/$TARGET-gcc -c $SRC_DIR/kernel.c -o $BUILD_DIR/kernel.o $CFLAGS
-$TOOLCHAIN_PREFIX/$TARGET-gcc -T link.ld -o $BUILD_DIR/os-for-real.bin $CFLAGS -nostdlib $BUILD_DIR/boot.o $BUILD_DIR/kernel.o -lgcc
+$TOOLCHAIN_PREFIX/$TARGET-gcc -T link.ld -o $BUILD_DIR/os-for-real.bin $CFLAGS -nostdlib $BUILD_DIR/boot.o $BUILD_DIR/bootstrap.o $BUILD_DIR/kernel.o -lgcc
 
 # Verify multiboot header.
 if grub-file --is-x86-multiboot $BUILD_DIR/os-for-real.bin

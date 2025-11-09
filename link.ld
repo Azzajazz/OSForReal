@@ -17,11 +17,22 @@ SECTIONS
 	   memory which is verified to be available by the firmware, in order to
 	   work around this issue. This does not use that feature, so 2M was
 	   chosen as a safer option than the traditional 1M. */
-	. = 2M;
+    /* I don't care though, and I know that my current QEMU setup will allow this. */
+    /* @FIXME: Find a more portable way of doing this */
+	. = 1M;
 
 	/* First put the multiboot header, as it is required to be put very early
 	   in the image or the bootloader won't recognize the file format.
 	   Next we'll put the .text section. */
+    __boot_start = .;
+    .boot :
+    {
+        *(build/boot.o*)
+        *(build/bootstrap.o*)
+    }
+    __boot_end = .;
+
+    __kernel_start = .;
 	.text BLOCK(4K) : ALIGN(4K)
 	{
 		*(.multiboot)
@@ -52,7 +63,7 @@ SECTIONS
     {
         *(.comment)
     }
+    __kernel_end = .;
 
-	/* The compiler may produce other sections, by default it will put them in
-	   a segment with the same name. Simply add stuff here as needed. */
+    __loaded_size = (__boot_end - __boot_start) + (__kernel_end - __kernel_start);
 }

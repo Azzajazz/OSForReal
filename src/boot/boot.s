@@ -89,7 +89,7 @@ _start:
 
     /* Pass the multiboot information address to kernel_main */
     push %ebx
-	call kernel_main
+	call bootstrap
 
 	/*
 	If the system has nothing more to do, put the computer into an
