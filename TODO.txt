@@ -4,7 +4,6 @@ Toolchain:
 
 --------------------------------------------------------------------------------
 Kernel:
-- gdt
 - Paging
 - Allocators
 - Interrupts
