@@ -1,6 +1,7 @@
 - Paging
-    - Split bootstrap into a separate section
-    - Identity mapping
+    X Split bootstrap into a separate section
+    X Identity mapping
+    - Move gdt out of the bootstrap code.
     - Map kernel code to 0xc0000000 and set VMA there.
 
 --------------------------------------------------------------------------------

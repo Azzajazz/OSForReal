@@ -34,7 +34,7 @@ void assert(char *file, int line, const char *func, bool condition, char *messag
     );
 }
 
-void kernel_main(Multiboot_Info *boot_info, void *page_directory, void *page_table_area)
+void kernel_main(Multiboot_Info *boot_info)
 {
     // @Cleanup: Name
 	terminal_initialize();
@@ -50,8 +50,6 @@ void kernel_main(Multiboot_Info *boot_info, void *page_directory, void *page_tab
         segments = (MMap_Segment*)((uint8_t*)segments + segments->size + 4);
     }
     fmt_print("\n");
-    fmt_print("Page directory: %x\n", (uint32_t)page_directory);
-    fmt_print("Page table area: %x\n", (uint32_t)page_table_area);
     fmt_print("boot_start: %x\n", (uint32_t)&__boot_start);
     fmt_print("loaded_size: %d\n", (uint32_t)&__loaded_size);
     fmt_print("kernel_end: %x\n", (uint32_t)&__kernel_end);
