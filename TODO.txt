@@ -1,6 +1,6 @@
 - Interrupts
     - Set up IDT
-    - Set up a fault handler and cause that fault to see if it's called.
+    X Set up a fault handler and cause that fault to see if it's called.
     - Set up a software interrupt handler and trigger that interrupt.
     - Initialise the PIC.
     - Set up hardware interrupt handler and trigger interrupt.

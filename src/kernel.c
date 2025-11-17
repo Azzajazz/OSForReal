@@ -5,6 +5,7 @@
 
 #define UNUSED(x) (void)(x)
 #define PACKED __attribute__((packed))
+#define INTERRUPT __attribute__((target("general-regs-only"),interrupt))
 
 void assert(char *file, int line, const char *func, bool condition, char *message);
 #define ASSERT(condition, message) assert(__FILE__, __LINE__, __func__, (condition), (message))
@@ -28,12 +29,7 @@ void assert(char *file, int line, const char *func, bool condition, char *messag
 
     fmt_print("ASSERTION FAILED\n");
     fmt_print("%s:%s:%d: %s\n", file, func, line, message);
-    // @TODO: Factor out into platform/x86.c
-    asm (
-        "cli\n\t"
-        "1: hlt\n\t"
-        "jmp 1b\n\t"
-    );
+    cpu_halt();
 }
 
 void kernel_main(Multiboot_Info *boot_info)
@@ -43,6 +39,8 @@ void kernel_main(Multiboot_Info *boot_info)
     bool initted = serial_init();
     ASSERT(initted, "Serial initialization failed.");
     serial_write('\n'); // @Hack: Qemu doesn't put a newline in the serial.
+    idt_init();
+    asm("int 0xff"); // Should cause a general protection fault?
 
     MMap_Segment *segments = (MMap_Segment*)boot_info->mmap_addr;
     MMap_Segment *past_last_segment = (MMap_Segment*)(boot_info->mmap_addr + boot_info->mmap_length);
