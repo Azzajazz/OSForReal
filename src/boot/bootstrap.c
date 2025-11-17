@@ -8,6 +8,10 @@
 
 // Linker constants.
 extern int __boot_start;
+extern int __kernel_start;
+extern int __kernel_end;
+extern int __kernel_phys_start;
+extern int __kernel_phys_end;
 extern int __loaded_size;
 
 #include "multiboot.c"

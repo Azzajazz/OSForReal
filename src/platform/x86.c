@@ -15,3 +15,11 @@ uint8_t in_8(uint16_t port) {
     );
     return data;
 }
+
+void cpu_halt() {
+    asm (
+        "cli\n\t"
+        "1: hlt\n\t"
+        "jmp 1b\n\t"
+    );
+}

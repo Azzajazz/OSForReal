@@ -16,8 +16,10 @@ void assert(char *file, int line, const char *func, bool condition, char *messag
 
 // Linker symbols
 extern int __boot_start;
-extern int __loaded_size;
+extern int __boot_end;
+extern int __kernel_start;
 extern int __kernel_end;
+extern int __loaded_size;
 
 void assert(char *file, int line, const char *func, bool condition, char *message) {
     if (condition) {
@@ -51,8 +53,10 @@ void kernel_main(Multiboot_Info *boot_info)
     }
     fmt_print("\n");
     fmt_print("boot_start: %x\n", (uint32_t)&__boot_start);
-    fmt_print("loaded_size: %d\n", (uint32_t)&__loaded_size);
+    fmt_print("boot_end: %x\n", (uint32_t)&__boot_end);
+    fmt_print("kernel_start: %x\n", (uint32_t)&__kernel_start);
     fmt_print("kernel_end: %x\n", (uint32_t)&__kernel_end);
+    fmt_print("loaded_size: %d\n", (uint32_t)&__loaded_size);
 
     // @FIXME: Assert that the multiboot magic number is correct.
     ASSERT(boot_info->flags & (1 << 6), "Boot info mmap is not valid.");

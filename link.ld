@@ -2,6 +2,12 @@
    designated as the entry point. */
 ENTRY(_start)
 
+MEMORY
+{
+    /* We don't really know a length here, but it's surely more than 1M*/
+    BIGBLOCK (rwx): ORIGIN = 1M, LENGTH = 1M
+}
+
 /* Tell where the various sections of the object files will be put in the final
    kernel image. */
 SECTIONS
@@ -24,46 +30,56 @@ SECTIONS
 	/* First put the multiboot header, as it is required to be put very early
 	   in the image or the bootloader won't recognize the file format.
 	   Next we'll put the .text section. */
-    __boot_start = .;
     .boot :
     {
-        *(build/boot.o*)
-        *(build/bootstrap.o*)
-    }
-    __boot_end = .;
+        __boot_start = .;
+        *(.multiboot)
+		*boot.o (*)
+        *bootstrap.o (*)
+        __boot_end = .;
+    } AT> BIGBLOCK
+    __kernel_phys_start = ALIGN(4K);
 
-    __kernel_start = .;
+    . = 0xC0000000;
 	.text BLOCK(4K) : ALIGN(4K)
 	{
-		*(.multiboot)
-		*(.text)
-	}
+        __kernel_start = .;
+		EXCLUDE_FILE(*boot.o *bootstrap.o) *(.text)
+	} AT> BIGBLOCK 
 
 	/* Read-only data. */
 	.rodata BLOCK(4K) : ALIGN(4K)
 	{
-		*(.rodata)
-        *(.rodata.*)
-	}
+		EXCLUDE_FILE(*boot.o *bootstrap.o) *(.rodata)
+        EXCLUDE_FILE(*boot.o *bootstrap.o) *(.rodata.*)
+	} AT> BIGBLOCK
 
 	/* Read-write data (initialized) */
 	.data BLOCK(4K) : ALIGN(4K)
 	{
-		*(.data)
-	}
+		EXCLUDE_FILE(*boot.o *bootstrap.o) *(.data)
+	} AT> BIGBLOCK
 
 	/* Read-write data (uninitialized) and stack */
 	.bss BLOCK(4K) : ALIGN(4K)
 	{
-		*(COMMON)
-		*(.bss)
-	}
+		EXCLUDE_FILE(*boot.o *bootstrap.o) *(COMMON)
+		EXCLUDE_FILE(*boot.o *bootstrap.o) *(.bss)
+	} AT> BIGBLOCK
+
+    .eh_frame BLOCK(4K) : ALIGN(4K)
+    {
+        *(.eh_frame)
+    } AT> BIGBLOCK
+
+    . = ALIGN(4K);
+    __kernel_end = .;
+    __kernel_phys_end = __kernel_phys_start + (__kernel_end - __kernel_start);
 
     /DISCARD/ :
     {
         *(.comment)
     }
-    __kernel_end = .;
 
     __loaded_size = (__boot_end - __boot_start) + (__kernel_end - __kernel_start);
 }

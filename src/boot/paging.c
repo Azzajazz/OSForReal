@@ -165,6 +165,13 @@ bool paging_init(Multiboot_Info *boot_info) {
         map_page_to_virtual(page, page, page_table_flags, placement.page_directory);
     }
 
+    // Map the kernel to address 0xC0000000
+    uint32_t kernel_virt_addr = (uint32_t)&__kernel_start;
+    for (uint32_t page = (uint32_t)&__kernel_phys_start; page < (uint32_t)&__kernel_phys_end; page += PAGE_SIZE) {
+        map_page_to_virtual(page, kernel_virt_addr, page_table_flags, placement.page_directory);
+        kernel_virt_addr += PAGE_SIZE;
+    }
+
     asm(
         "mov cr3, %0\t\n"
 
