@@ -1,8 +1,15 @@
+- Interrupts
+    - Set up IDT
+    - Set up a fault handler and cause that fault to see if it's called.
+    - Set up a software interrupt handler and trigger that interrupt.
+    - Initialise the PIC.
+    - Set up hardware interrupt handler and trigger interrupt.
+
+
 - Paging
     X Split bootstrap into a separate section
     X Identity mapping
-    - Move gdt out of the bootstrap code.
-    - Map kernel code to 0xc0000000 and set VMA there.
+    X Map kernel code to 0xc0000000 and set VMA there.
 
 --------------------------------------------------------------------------------
 Toolchain:
@@ -11,9 +18,11 @@ Toolchain:
 --------------------------------------------------------------------------------
 Kernel:
 - Allocators
-- Interrupts
 - Tests + test runner
+- Move gdt out of the bootstrap code.
+- Move stack out of the bootstrap code.
 
 --------------------------------------------------------------------------------
 Build scripts:
 - Do something better than exported env var for debug mode
+- Support debug symbols in bootstrap code
