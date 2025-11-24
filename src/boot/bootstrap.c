@@ -19,13 +19,22 @@ extern int __loaded_size;
 #include "paging.c"
 
 
-// Kernel entry point.
-void kernel_main(Multiboot_Info *boot_info);
+#ifdef KERNEL_TEST
+    // Kernel test runner.
+    void kernel_test(Multiboot_Info *boot_info);
+#else
+    // Kernel entry point.
+    void kernel_main(Multiboot_Info *boot_info);
+#endif
 
 
 void bootstrap(Multiboot_Info *boot_info) {
     bool initted = paging_init(boot_info);
     UNUSED(initted);
 
+#ifdef KERNEL_TEST
+    kernel_test(boot_info);
+#else
     kernel_main(boot_info);
+#endif
 }

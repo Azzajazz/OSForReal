@@ -7,6 +7,8 @@
 #define PACKED __attribute__((packed))
 #define INTERRUPT __attribute__((target("general-regs-only"),interrupt))
 
+#define ARRAY_LEN(array) (sizeof(array) / sizeof(array[0]))
+
 void assert(char *file, int line, const char *func, bool condition, char *message);
 #define ASSERT(condition, message) assert(__FILE__, __LINE__, __func__, (condition), (message))
 
@@ -32,6 +34,11 @@ void assert(char *file, int line, const char *func, bool condition, char *messag
     cpu_halt();
 }
 
+void keyboard_handler(Interrupt_Frame *frame) {
+    UNUSED(frame);
+    fmt_print("Key press!");
+}
+
 void kernel_main(Multiboot_Info *boot_info)
 {
     // @Cleanup: Name
@@ -39,8 +46,10 @@ void kernel_main(Multiboot_Info *boot_info)
     bool initted = serial_init();
     ASSERT(initted, "Serial initialization failed.");
     serial_write('\n'); // @Hack: Qemu doesn't put a newline in the serial.
+
+    // @FIXME: Put all this into interrupts_init()
+    pic_init();
     idt_init();
-    asm("int 0xff"); // Should cause a general protection fault?
 
     MMap_Segment *segments = (MMap_Segment*)boot_info->mmap_addr;
     MMap_Segment *past_last_segment = (MMap_Segment*)(boot_info->mmap_addr + boot_info->mmap_length);
@@ -59,12 +68,5 @@ void kernel_main(Multiboot_Info *boot_info)
     // @FIXME: Assert that the multiboot magic number is correct.
     ASSERT(boot_info->flags & (1 << 6), "Boot info mmap is not valid.");
 
-
-    // @IMPORTANT: Do not remove this line.
-    // This ensures that kernel_main never returns.
-    asm (
-        "cli\n\t"
-        "1: hlt\n\t"
-        "jmp 1b\n\t"
-    );
+    for(;;);
 }

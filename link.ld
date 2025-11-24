@@ -35,7 +35,7 @@ SECTIONS
         __boot_start = .;
         *(.multiboot)
 		*boot.o (*)
-        *bootstrap.o (*)
+        *bootstrap*.o (*)
         __boot_end = .;
     } AT> BIGBLOCK
     __kernel_phys_start = ALIGN(4K);
@@ -44,27 +44,27 @@ SECTIONS
 	.text BLOCK(4K) : ALIGN(4K)
 	{
         __kernel_start = .;
-		EXCLUDE_FILE(*boot.o *bootstrap.o) *(.text)
+		EXCLUDE_FILE(*boot.o *bootstrap*.o) *(.text)
 	} AT> BIGBLOCK 
 
 	/* Read-only data. */
 	.rodata BLOCK(4K) : ALIGN(4K)
 	{
-		EXCLUDE_FILE(*boot.o *bootstrap.o) *(.rodata)
-        EXCLUDE_FILE(*boot.o *bootstrap.o) *(.rodata.*)
+		EXCLUDE_FILE(*boot.o *bootstrap*.o) *(.rodata)
+        EXCLUDE_FILE(*boot.o *bootstrap*.o) *(.rodata.*)
 	} AT> BIGBLOCK
 
 	/* Read-write data (initialized) */
 	.data BLOCK(4K) : ALIGN(4K)
 	{
-		EXCLUDE_FILE(*boot.o *bootstrap.o) *(.data)
+		EXCLUDE_FILE(*boot.o *bootstrap*.o) *(.data)
 	} AT> BIGBLOCK
 
 	/* Read-write data (uninitialized) and stack */
 	.bss BLOCK(4K) : ALIGN(4K)
 	{
-		EXCLUDE_FILE(*boot.o *bootstrap.o) *(COMMON)
-		EXCLUDE_FILE(*boot.o *bootstrap.o) *(.bss)
+		EXCLUDE_FILE(*boot.o *bootstrap*.o) *(COMMON)
+		EXCLUDE_FILE(*boot.o *bootstrap*.o) *(.bss)
 	} AT> BIGBLOCK
 
     .eh_frame BLOCK(4K) : ALIGN(4K)
