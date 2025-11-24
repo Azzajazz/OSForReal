@@ -1,16 +1,4 @@
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
-#include <stdarg.h>
-
-#define UNUSED(x) (void)(x)
-#define PACKED __attribute__((packed))
-#define INTERRUPT __attribute__((target("general-regs-only"),interrupt))
-
-#define ARRAY_LEN(array) (sizeof(array) / sizeof(array[0]))
-
-void assert(char *file, int line, const char *func, bool condition, char *message);
-#define ASSERT(condition, message) assert(__FILE__, __LINE__, __func__, (condition), (message))
+#include "common.h"
 
 #include "boot/multiboot.c"
 #include "platform/x86.c"
@@ -39,17 +27,19 @@ void keyboard_handler(Interrupt_Frame *frame) {
     fmt_print("Key press!");
 }
 
-void kernel_main(Multiboot_Info *boot_info)
-{
-    // @Cleanup: Name
-	terminal_initialize();
+void kernel_init() {
+	terminal_init();
+
     bool initted = serial_init();
     ASSERT(initted, "Serial initialization failed.");
     serial_write('\n'); // @Hack: Qemu doesn't put a newline in the serial.
+                        
+    interrupts_init();
+}
 
-    // @FIXME: Put all this into interrupts_init()
-    pic_init();
-    idt_init();
+void kernel_main(Multiboot_Info *boot_info)
+{
+    kernel_init();
 
     MMap_Segment *segments = (MMap_Segment*)boot_info->mmap_addr;
     MMap_Segment *past_last_segment = (MMap_Segment*)(boot_info->mmap_addr + boot_info->mmap_length);

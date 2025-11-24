@@ -6,7 +6,7 @@ TOOLCHAIN_PREFIX=./toolchain/gcc-15.2.0-cross/bin
 TARGET=i686-elf
 
 SRC_DIR=./src
-TESTS_DIR=./tests
+TESTS_DIR=./src/tests
 BUILD_DIR=./build
 ISO_DIR=./isodir
 

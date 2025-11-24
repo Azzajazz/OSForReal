@@ -17,7 +17,7 @@ Kernel:
 --------------------------------------------------------------------------------
 Build scripts:
 - Do something better than exported env var for debug mode
-- Support debug symbols in bootstrap code
+- Debug symbols in bootstrap code
 
 --------------------------------------------------------------------------------
 Misc:
