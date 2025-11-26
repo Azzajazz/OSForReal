@@ -4,13 +4,19 @@
     - Write a test runner.
     - Write a test.
 
+- Allocators
+    - Linked list of memory in bootstrap.
+    - Move gdt out of bootstrap.
+    - Move stack out of bootstrap.
+    - Write a page frame allocator.
+    - Write a GPA or a bump allocator.
+
 --------------------------------------------------------------------------------
 Toolchain:
 - Make automatic toolchain installation script
 
 --------------------------------------------------------------------------------
 Kernel:
-- Allocators
 - Move gdt out of the bootstrap code.
 - Move stack out of the bootstrap code.
 
