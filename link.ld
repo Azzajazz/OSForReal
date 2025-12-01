@@ -34,8 +34,12 @@ SECTIONS
     {
         __boot_start = .;
         *(.multiboot)
-		*boot.o (*)
-        *bootstrap*.o (*)
+		*boot.o (.text)
+        *boot.o (.data)
+        *boot.o (.bss)
+        *bootstrap*.o (.text)
+        *bootstrap*.o (.data)
+        *bootstrap*.o (.bss)
         __boot_end = .;
     } AT> BIGBLOCK
     __kernel_phys_start = ALIGN(4K);
@@ -67,6 +71,7 @@ SECTIONS
 		EXCLUDE_FILE(*boot.o *bootstrap*.o) *(.bss)
 	} AT> BIGBLOCK
 
+    /* Debug info sections. */
     .eh_frame BLOCK(4K) : ALIGN(4K)
     {
         *(.eh_frame)

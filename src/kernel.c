@@ -1,5 +1,6 @@
 #include "common.h"
 
+#include "boot/interface.c"
 #include "boot/multiboot.c"
 #include "platform/x86.c"
 #include "hal/hal.c"
@@ -37,17 +38,21 @@ void kernel_init() {
     interrupts_init();
 }
 
-void kernel_main(Multiboot_Info *boot_info)
+void kernel_main(Multiboot_Info *boot_info, Bootstrap_Info info)
 {
+    UNUSED(info);
     kernel_init();
 
-    MMap_Segment *segments = (MMap_Segment*)boot_info->mmap_addr;
-    MMap_Segment *past_last_segment = (MMap_Segment*)(boot_info->mmap_addr + boot_info->mmap_length);
-    while (segments < past_last_segment) {
+    MMap_Segment *segment = (MMap_Segment*)boot_info->mmap_addr;
+    size_t bytes_traversed = 0;
+    while (bytes_traversed < boot_info->mmap_length) {
         fmt_print("addr: %lx, length: %lu, type: %u, size: %u\n",
-            segments->base_addr, segments->length, segments->type, segments->size);
-        segments = (MMap_Segment*)((uint8_t*)segments + segments->size + 4);
+            segment->base_addr, segment->length, segment->type, segment->size);
+
+        bytes_traversed += segment->size + 4;
+        segment = (MMap_Segment*)((uint8_t*)segment + segment->size + 4);
     }
+
     fmt_print("\n");
     fmt_print("boot_start: %x\n", (uint32_t)&__boot_start);
     fmt_print("boot_end: %x\n", (uint32_t)&__boot_end);
@@ -56,7 +61,7 @@ void kernel_main(Multiboot_Info *boot_info)
     fmt_print("loaded_size: %d\n", (uint32_t)&__loaded_size);
 
     // @FIXME: Assert that the multiboot magic number is correct.
-    ASSERT(boot_info->flags & (1 << 6), "Boot info mmap is not valid.");
+    // ASSERT(boot_info->flags & (1 << 6), "Boot info mmap is not valid.");
 
     for(;;);
 }

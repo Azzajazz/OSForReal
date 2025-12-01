@@ -1,9 +1,3 @@
-- Tests + test runner
-    - Bootloader entry point choices based on compilation flags.
-    - Sort out includes between kernel and tests.
-    - Write a test runner.
-    - Write a test.
-
 - Allocators
     - Linked list of memory in bootstrap.
     - Move gdt out of bootstrap.
@@ -23,7 +17,6 @@ Kernel:
 --------------------------------------------------------------------------------
 Build scripts:
 - Do something better than exported env var for debug mode
-- Debug symbols in bootstrap code
 
 --------------------------------------------------------------------------------
 Misc:

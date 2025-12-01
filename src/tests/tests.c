@@ -18,8 +18,8 @@ Test tests[] = {
     TEST(dummy_test),
 };
 
-void kernel_test(Multiboot_Info *boot_info) {
-    UNUSED(boot_info);
+void kernel_test(Bootstrap_Info info) {
+    UNUSED(info);
     kernel_init();
 
     int passed = 0;
