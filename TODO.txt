@@ -1,5 +1,6 @@
 - Allocators
-    - Linked list of memory in bootstrap.
+    X Place page metadata.
+    ... Initialize page metadata.
     - Move gdt out of bootstrap.
     - Move stack out of bootstrap.
     - Write a page frame allocator.

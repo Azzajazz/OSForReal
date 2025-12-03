@@ -6,6 +6,9 @@
 #include "hal/hal.c"
 #include "std/std.c"
 
+void assert(char *file, int line, const char *func, bool condition, char *message);
+#define ASSERT(condition, message) assert(__FILE__, __LINE__, __func__, (condition), (message))
+
 // Linker symbols
 extern int __boot_start;
 extern int __boot_end;

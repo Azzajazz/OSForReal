@@ -9,6 +9,4 @@
 
 #define ARRAY_LEN(array) (sizeof(array) / sizeof(array[0]))
 
-void assert(char *file, int line, const char *func, bool condition, char *message);
-#define ASSERT(condition, message) assert(__FILE__, __LINE__, __func__, (condition), (message))
-
+#define DIV_CEIL(a, b) (((a) + (b) - 1) / (b))

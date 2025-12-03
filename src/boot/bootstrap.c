@@ -1,10 +1,4 @@
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
-#include <stdarg.h>
-
-#define UNUSED(x) (void)(x)
-#define PACKED __attribute__((packed))
+#include "../common.h"
 
 // Linker constants.
 extern int __boot_start;
@@ -13,6 +7,9 @@ extern int __kernel_end;
 extern int __kernel_phys_start;
 extern int __kernel_phys_end;
 extern int __loaded_size;
+
+#define PAGE_DIR_SIZE 1024 * 4
+#define PAGE_TABLES_SIZE 1024 * 1024 * 4
 
 #include "interface.c"
 #include "multiboot.c"
@@ -73,9 +70,7 @@ void bootstrap(Multiboot_Info *boot_info) {
 
 
     bool page_directory_placed = false;
-    size_t page_directory_size = 1024 * 4;
     bool page_tables_placed = false;
-    size_t page_tables_size = 1024 * 1024 * 4;
     bool page_bitmap_placed = false;
     
     // Calculate the size of the bitmap.
@@ -89,7 +84,9 @@ void bootstrap(Multiboot_Info *boot_info) {
         bytes_traversed += segment->size + 4;
         segment = (MMap_Segment*)((uint8_t*)segment + segment->size + 4);
     }
-    size_t page_bitmap_size = (memory_size + PAGE_SIZE - 1) / PAGE_SIZE;
+    // 1 bit per page.
+    size_t page_count = DIV_CEIL(memory_size, PAGE_SIZE);
+    info.page_bitmap_size = DIV_CEIL(page_count, 8);
 
     // Place things.
     bytes_traversed = 0;
@@ -114,7 +111,7 @@ void bootstrap(Multiboot_Info *boot_info) {
             place_page_metadata(
                 base_addr, length,
                 &info,
-                page_directory_size, page_tables_size, page_bitmap_size,
+                PAGE_DIR_SIZE, PAGE_TABLES_SIZE, info.page_bitmap_size,
                 &page_directory_placed, &page_tables_placed, &page_bitmap_placed
             );
             contains_kernel = true;
@@ -127,7 +124,7 @@ void bootstrap(Multiboot_Info *boot_info) {
             place_page_metadata(
                 base_addr, length,
                 &info,
-                page_directory_size, page_tables_size, page_bitmap_size,
+                PAGE_DIR_SIZE, PAGE_TABLES_SIZE, info.page_bitmap_size,
                 &page_directory_placed, &page_tables_placed, &page_bitmap_placed
             );
             contains_kernel = true;
@@ -140,7 +137,7 @@ void bootstrap(Multiboot_Info *boot_info) {
             place_page_metadata(
                 base_addr, length,
                 &info,
-                page_directory_size, page_tables_size, page_bitmap_size,
+                PAGE_DIR_SIZE, PAGE_TABLES_SIZE, info.page_bitmap_size,
                 &page_directory_placed, &page_tables_placed, &page_bitmap_placed
             );
         }
