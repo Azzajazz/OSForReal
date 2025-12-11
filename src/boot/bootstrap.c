@@ -151,7 +151,7 @@ void bootstrap(Multiboot_Info *boot_info) {
     }
 
     // Initialize the paging.
-    paging_init(info);
+    paging_init(info, boot_info);
 
 #ifdef KERNEL_TEST
     kernel_test(info);

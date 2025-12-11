@@ -35,7 +35,7 @@ void map_page_to_virtual(
 }
 
 // NOTE: page_table_area is guaranteed to have enough space to hold 1024 page tables contiguously.
-bool paging_init(Bootstrap_Info info) {
+bool paging_init(Bootstrap_Info info, Multiboot_Info *boot_info) {
     // Set up the page directory.
     uint8_t page_directory_flags = PAGE_DIR_PRESENT | PAGE_DIR_RW | PAGE_DIR_ACCESS_ALL | PAGE_DIR_ACCESSED;
     for (int i = 0; i < 1024; i++) {
@@ -109,7 +109,29 @@ bool paging_init(Bootstrap_Info info) {
             page_base_addr += PAGE_SIZE;
         }
     }
-    
+
+    // Any pages that aren't fully contained in a block of type 1 memory are marked as used.
+    MMap_Segment *segment = (MMap_Segment*)boot_info->mmap_addr;
+    size_t bytes_traversed = 0;
+    while (bytes_traversed < boot_info->mmap_length) {
+        if (segment->type != 1) {
+            uint64_t addr = segment->base_addr;
+            // Align backwards to PAGE_SIZE.
+            if (addr % PAGE_SIZE != 0) {
+                addr -= addr % PAGE_SIZE;
+            }
+            
+            for(; addr < segment->base_addr + segment->length; addr += PAGE_SIZE) {
+                int mask_offset = (addr / PAGE_SIZE) / 32;
+                int bit_offset = (addr / PAGE_SIZE) % 32; 
+                uint32_t* mask = (uint32_t*)info.page_bitmap + mask_offset;
+                *mask |= (1 << bit_offset);
+            }
+        }
+
+        bytes_traversed += segment->size + 4;
+        segment = (MMap_Segment*)((uint8_t*)segment + segment->size + 4);
+    }
 
     asm(
         "mov cr3, %0\t\n"
