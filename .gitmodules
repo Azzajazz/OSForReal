@@ -1,0 +1,3 @@
+[submodule "tagfs_FUSE/libfuse"]
+	path = tagfs_FUSE/libfuse
+	url = https://github.com/libfuse/libfuse.git
