@@ -1913,5 +1913,6 @@ void interrupts_init() {
 // @FIXME: Name.
 void idt_register_handler(int vector, Registered_Handler handler) {
     // @FIXME: This should probably be an atomic load.
+    // @FIXME FIXME: Ahhhhh scary
     registered_handlers[vector - 32] = handler;
 }

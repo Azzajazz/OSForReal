@@ -49,7 +49,7 @@ void kernel_main(Multiboot_Info *boot_info, Bootstrap_Info info)
     MMap_Segment *segment = (MMap_Segment*)boot_info->mmap_addr;
     size_t bytes_traversed = 0;
     while (bytes_traversed < boot_info->mmap_length) {
-        fmt_print("addr: %lx, length: %lu, type: %u, size: %u\n",
+        fmt_print("addr: %lx, length: %lx, type: %u, size: %u\n",
             segment->base_addr, segment->length, segment->type, segment->size);
 
         bytes_traversed += segment->size + 4;

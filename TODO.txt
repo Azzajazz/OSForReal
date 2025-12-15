@@ -14,10 +14,15 @@ Toolchain:
 Kernel:
 - Move gdt out of the bootstrap code.
 - Move stack out of the bootstrap code.
+- PS/2 keyboard driver
+- File system driver
+- ELF parsing
+- Executable loader
+- Context switching
 
 --------------------------------------------------------------------------------
 Build scripts:
-- Do something better than exported env var for debug mode
+- Test script
 
 --------------------------------------------------------------------------------
 Misc:
