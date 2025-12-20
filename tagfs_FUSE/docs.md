@@ -23,11 +23,21 @@ TagFS aims to be an on-disk tagged file system. In a tagged file system, there a
 - Boot sector
 - FS metadata block
 
------------------------------------------------------------------------------------------------
-|Boot sector|FS metadata|File metadata FAT?|File data FAT?|Tag metadata FAT?|Tag-File map|Data|
------------------------------------------------------------------------------------------------
+|Boot sector|FS metadata|File metadata|Tag metadata|Tag-File map|FAT|Data|
+|-----------|-----------|-------------|------------|------------|---|----|
 
-## Behaviour
+### Boot sector
+
+The boot sector contains only the bootloader. TagFS does not store any file system data in this block.
+
+**Size**: 512 bytes
+**Offset**: 0
+
+### FS Metadata
+
+The FS metadata block has the following structure:
+
+## Behaviour<a name-"behaviour"></a>
 
 ***TODO: Fill this in***
 - What happens on duplicate file names? Do files even have names?
