@@ -23,7 +23,7 @@ int tagfs_getattr(const char *path, struct stat *st, struct fuse_file_info *fi) 
 }
 
 static struct fuse_operations myfs_ops = {
-    .getattr=tagfs_getattr,
+    .getattr = tagfs_getattr,
 };
 
 char *devfile = NULL;
