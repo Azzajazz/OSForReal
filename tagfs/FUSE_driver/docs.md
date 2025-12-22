@@ -41,10 +41,11 @@ The FS metadata block takes up the next sector and has the following structure:
 |:-----|:---|:-----------------------|:--------------------------------------------------|
 |0     |4   |`version`               |Version number of the TagFS file system. Must be 1.|
 |4     |4   |`sector_size`           |Size of a sector in bytes.                         |
-|8     |4   |`file_meta_sector_count`|Size of the file metadata section in sectors.      |
-|12    |4   |`tag_meta_sector_count` |Size of the tag metadata section in sectors.       |
-|16    |4   |`tag_file_sector_count` |Size of the tag file map section in sectors.       |
-|20    |4   |`fat_size_sector_count` |Size of the FAT section in sectors.                |
+|8     |4   |`sector_count`          |Number of sectors on the storage media.            |
+|12    |4   |`file_meta_sector_count`|Size of the file metadata section in sectors.      |
+|16    |4   |`tag_meta_sector_count` |Size of the tag metadata section in sectors.       |
+|20    |4   |`tag_file_sector_count` |Size of the tag file map section in sectors.       |
+|24    |4   |`fat_sector_count`      |Size of the FAT section in sectors.                |
 
 **Size:** `24` bytes
 **Byte Offset:** `512`
