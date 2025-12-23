@@ -32,6 +32,7 @@ int main() {
     uint8_t *mapped_img = mmap(NULL, SECTOR_COUNT * SECTOR_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (mapped_img == MAP_FAILED) {
         fprintf(stderr, "ERROR: Could not mmap file %s: %s\n", file_name, strerror(errno));
+        close(fd);
         return 1;
     }
 
@@ -47,9 +48,12 @@ int main() {
     // Make sure the changes propagate to the file.
     if (msync(mapped_img, SECTOR_COUNT * SECTOR_SIZE, MS_SYNC) == -1) {
         fprintf(stderr, "ERROR: Could not sync changes to file %s: %s\n", file_name, strerror(errno));
+        munmap(mapped_img, SECTOR_COUNT * SECTOR_SIZE);
+        close(fd);
+        return 1;
     }
+
     munmap(mapped_img, SECTOR_COUNT * SECTOR_SIZE);
     close(fd);
-
     return 0;
 }

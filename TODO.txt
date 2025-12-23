@@ -6,6 +6,16 @@
     - Write a page frame allocator.
     - Write a GPA or a bump allocator.
 
+- TagFS
+    - Expand on docs as needed.
+    - Write tfsfmt utility.
+        - Format an image.
+        - Create a file in a formatted image.
+        - Create a tag in a formatted image.
+        - Link a tag to a file.
+    - FUSE driver.
+    - Port TagFS to OSForReal.
+
 --------------------------------------------------------------------------------
 Toolchain:
 - Make automatic toolchain installation script
