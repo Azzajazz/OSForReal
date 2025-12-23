@@ -19,6 +19,8 @@ struct {
     int tag_meta_sector_count;
     int tag_file_sector_count;
     int fat_sector_count;
+
+    char *image_name;
 } options;
 
 // @TODO: Customize with cmd-line arguments.
@@ -43,8 +45,10 @@ void parse_options(int argc, char **argv) {
     options.tag_meta_sector_count = 10;
     options.tag_file_sector_count = 10;
     options.fat_sector_count = 2;
+    options.image_name = NULL;
 
     // Parse the given options.
+    flags_add_cstr_positional(&options.image_name);
     flags_add_int_flag(&options.sector_count, "-sector-count");
     flags_add_int_flag(&options.sector_size, "-sector-size");
     flags_add_int_flag(&options.file_meta_sector_count, "-fm-sectors");
@@ -60,9 +64,8 @@ int main(int argc, char **argv) {
     // Parse command line options.
     // @TODO: Flag parsing library.
     parse_options(argc, argv);
-    char *image_name = "test.img";
 
-    if (image_name == NULL) {
+    if (options.image_name == NULL) {
         fprintf(stderr, "ERROR: Must supply an image name\n");
     }
 
