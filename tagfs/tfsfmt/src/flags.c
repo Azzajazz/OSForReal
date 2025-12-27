@@ -24,6 +24,7 @@ typedef struct {
     char *option;
     char *description;
     bool provided;
+    bool required;
     union {
         Flag_Cstr flag_cstr;
         Flag_Int flag_int;
@@ -83,6 +84,7 @@ void flags_add_cstr_positional(char **value, char *name, char *description) {
     flag->type = FLAG_CSTR;
     flag->option = name;
     flag->description = description;
+    flag->required = true;
     flag->flag_cstr.value = value;
 }
 
@@ -97,23 +99,32 @@ bool flags_parse_flag(Flag *flag, int *argc, char ***argv) {
     flag->provided = true;
 
     switch (flag->type) {
-    case FLAG_CSTR: {
-        char *arg = shift_args(argc, argv);
-        *flag->flag_cstr.value = arg;
-    } break;
-    case FLAG_INT: {
-        char *arg = shift_args(argc, argv);
+        case FLAG_CSTR: {
+            char *arg = shift_args(argc, argv);
+            *flag->flag_cstr.value = arg;
+        } break;
 
-        int value = strtol(arg, &arg, 10);
-        // @TODO: Do we want a user error in case of invalid integer arguments?
-        assert(errno != ERANGE);
-        assert(*arg == '\0');
+        case FLAG_INT: {
+            char *arg = shift_args(argc, argv);
 
-        *flag->flag_int.value = value;
-    } break;
-    case FLAG_BOOL: {
-        *flag->flag_bool.value = true;
-    } break;
+            char *arg_end;
+            int value = strtol(arg, &arg_end, 10);
+            // @TODO: Do we want a user error in case of invalid integer arguments?
+            if (errno == ERANGE) {
+                printf("%s %s: Integer out of range.\n\n", flag->option, arg);
+                return false;
+            }
+            if (*arg_end != '\0') {
+                printf("%s %s: Not a valid integer.\n\n", flag->option, arg);
+                return false;
+            }
+
+            *flag->flag_int.value = value;
+        } break;
+
+        case FLAG_BOOL: {
+            *flag->flag_bool.value = true;
+        } break;
     }
 
     return true;
@@ -126,7 +137,8 @@ bool flags_parse_flags(int argc, char **argv) {
         char *arg = shift_args(&argc, &argv);
         
         if (*arg != '-') {
-            if (positional_i >= positional_index) {
+            if (positional_i > positional_index) {
+                printf("Too many positional arguments provided (expected at most %d).\n\n", positional_index);
                 return false;
             }
 
@@ -151,12 +163,28 @@ bool flags_parse_flags(int argc, char **argv) {
             }
 
             if (!flag_found) {
+                printf("%s: Unknown flag.\n\n", arg);
                 return false;
             }
         }
     }
 
-    // @TODO: Verify that required flags and positionals are provided.
+    for (int i = 0; i < positional_index; i++) {
+        Flag positional = positionals[i];
+        if (positional.required && !positional.provided) {
+            printf("Argument <%s> is required, but was not given.\n\n", positional.option);
+            return false;
+        }
+    }
+
+    for (int i = 0; i < flag_index; i++) {
+        Flag flag = flags[i];
+        if (flag.required && !flag.provided) {
+            printf("Argument <%s> is required, but was not given.\n\n", flag.option);
+            return false;
+        }
+    }
+
     return true;
 }
 
@@ -175,14 +203,12 @@ void flags_print_help(char *program_name, char *usage_suffix) {
     printf("Positional arguments:\n");
     for (int i = 0; i < positional_index; i++) {
         Flag positional = positionals[i];
-
         printf("  %s: %s\n", positional.option, positional.description);
     }
 
     printf("\nOPTIONS:\n");
     for (int i = 0; i < flag_index; i++) {
         Flag flag = flags[i];
-
         printf("  %s: %s\n", flag.option, flag.description);
     }
 }

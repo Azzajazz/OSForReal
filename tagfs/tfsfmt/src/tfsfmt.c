@@ -37,7 +37,7 @@ typedef struct {
     uint32_t fat_sector_count;
 } FS_Metadata;
 
-void parse_options(int argc, char **argv) {
+bool parse_options(int argc, char **argv) {
     // Set up defaults.
     options.sector_count = 1000;
     options.sector_size = 512;
@@ -59,16 +59,17 @@ void parse_options(int argc, char **argv) {
     char *program_name = shift_args(&argc, &argv);
     if (!flags_parse_flags(argc, argv)) {
         flags_print_help(program_name, NULL);
+        return false;
     }
+
+    return true;
 }
 
 int main(int argc, char **argv) {
     // Parse command line options.
     // @TODO: Flag parsing library.
-    parse_options(argc, argv);
-
-    if (options.image_name == NULL) {
-        fprintf(stderr, "ERROR: Must supply an image name\n");
+    if (!parse_options(argc, argv)) {
+        return 1;
     }
 
     char *file_name = "test.img";
