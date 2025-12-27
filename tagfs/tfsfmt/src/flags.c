@@ -22,6 +22,7 @@ typedef struct {
 typedef struct {
     Flag_Type type;
     char *option;
+    char *description;
     bool provided;
     union {
         Flag_Cstr flag_cstr;
@@ -38,45 +39,50 @@ static int flag_index;
 static Flag positionals[POSITIONAL_COUNT] = {0};
 static int positional_index;
 
-void flags_add_cstr_flag(char **value, char *option) {
+void flags_add_cstr_flag(char **value, char *option, char *description) {
     assert(flag_index < FLAG_COUNT);
     Flag *flag = &flags[flag_index];
     flag_index++;
 
     flag->type = FLAG_CSTR;
     flag->option = option;
+    flag->description = description;
     flag->provided = false;
     flag->flag_cstr.value = value;
 }
 
-void flags_add_int_flag(int *value, char *option) {
+void flags_add_int_flag(int *value, char *option, char *description) {
     assert(flag_index < FLAG_COUNT);
     Flag *flag = &flags[flag_index];
     flag_index++;
 
     flag->type = FLAG_INT;
     flag->option = option;
+    flag->description = description;
     flag->provided = false;
     flag->flag_int.value = value;
 }
 
-void flags_add_bool_flag(bool *value, char *option) {
+void flags_add_bool_flag(bool *value, char *option, char *description) {
     assert(flag_index < FLAG_COUNT);
     Flag *flag = &flags[flag_index];
     flag_index++;
 
     flag->type = FLAG_BOOL;
     flag->option = option;
+    flag->description = description;
     flag->provided = false;
     flag->flag_bool.value = value;
 }
 
-void flags_add_cstr_positional(char **value) {
+void flags_add_cstr_positional(char **value, char *name, char *description) {
     assert(positional_index < POSITIONAL_COUNT);
     Flag *flag = &positionals[positional_index];
     positional_index++;
 
     flag->type = FLAG_CSTR;
+    flag->option = name;
+    flag->description = description;
     flag->flag_cstr.value = value;
 }
 
@@ -97,8 +103,13 @@ bool flags_parse_flag(Flag *flag, int *argc, char ***argv) {
     } break;
     case FLAG_INT: {
         char *arg = shift_args(argc, argv);
-        // @TODO: Verify that this is a valid int.
-        *flag->flag_int.value = atoi(arg);
+
+        int value = strtol(arg, &arg, 10);
+        // @TODO: Do we want a user error in case of invalid integer arguments?
+        assert(errno != ERANGE);
+        assert(*arg == '\0');
+
+        *flag->flag_int.value = value;
     } break;
     case FLAG_BOOL: {
         *flag->flag_bool.value = true;
@@ -108,7 +119,6 @@ bool flags_parse_flag(Flag *flag, int *argc, char ***argv) {
     return true;
 }
 
-// @TODO: Support positional arguments.
 bool flags_parse_flags(int argc, char **argv) {
     int positional_i = 0;
 
@@ -120,8 +130,9 @@ bool flags_parse_flags(int argc, char **argv) {
                 return false;
             }
 
-            positionals[positional_i].provided = true;
-            *positionals[positional_i].flag_cstr.value = arg;
+            if (!flags_parse_flag(&positionals[positional_i], &argc, &argv)) {
+                return false;
+            }
             positional_i++;
         }
         else {
@@ -145,5 +156,33 @@ bool flags_parse_flags(int argc, char **argv) {
         }
     }
 
+    // @TODO: Verify that required flags and positionals are provided.
     return true;
+}
+
+void flags_print_help(char *program_name, char *usage_suffix) {
+    if (usage_suffix == NULL) {
+        usage_suffix = "[OPTIONS]";
+    }
+    
+    printf("Usage: %s", program_name);
+    for (int i = 0; i < positional_index; i++) {
+        Flag positional = positionals[i];
+        printf(" <%s>", positional.option);
+    }
+    printf(" %s\n\n", usage_suffix);
+
+    printf("Positional arguments:\n");
+    for (int i = 0; i < positional_index; i++) {
+        Flag positional = positionals[i];
+
+        printf("  %s: %s\n", positional.option, positional.description);
+    }
+
+    printf("\nOPTIONS:\n");
+    for (int i = 0; i < flag_index; i++) {
+        Flag flag = flags[i];
+
+        printf("  %s: %s\n", flag.option, flag.description);
+    }
 }

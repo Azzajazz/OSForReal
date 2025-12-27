@@ -48,16 +48,18 @@ void parse_options(int argc, char **argv) {
     options.image_name = NULL;
 
     // Parse the given options.
-    flags_add_cstr_positional(&options.image_name);
-    flags_add_int_flag(&options.sector_count, "-sector-count");
-    flags_add_int_flag(&options.sector_size, "-sector-size");
-    flags_add_int_flag(&options.file_meta_sector_count, "-fm-sectors");
-    flags_add_int_flag(&options.tag_meta_sector_count, "-tm-sectors");
-    flags_add_int_flag(&options.tag_file_sector_count, "-tf-sectors");
-    flags_add_int_flag(&options.fat_sector_count, "-fat_sectors");
+    flags_add_cstr_positional(&options.image_name, "image_name", "name of the image to format");
+    flags_add_int_flag(&options.sector_count, "-sector-count", "number of sectors in the image");
+    flags_add_int_flag(&options.sector_size, "-sector-size", "size of a sector");
+    flags_add_int_flag(&options.file_meta_sector_count, "-fm-sectors", "number of sectors in the file metadata section");
+    flags_add_int_flag(&options.tag_meta_sector_count, "-tm-sectors", "number of sectors in the tag metadata section");
+    flags_add_int_flag(&options.tag_file_sector_count, "-tf-sectors", "number of sectors in the tag file map");
+    flags_add_int_flag(&options.fat_sector_count, "-fat_sectors", "number of sectors in the file allocation table (FAT)");
 
-    shift_args(&argc, &argv);
-    flags_parse_flags(argc, argv);
+    char *program_name = shift_args(&argc, &argv);
+    if (!flags_parse_flags(argc, argv)) {
+        flags_print_help(program_name, NULL);
+    }
 }
 
 int main(int argc, char **argv) {
