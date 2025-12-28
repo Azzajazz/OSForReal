@@ -95,18 +95,15 @@ char *shift_args(int *argc, char ***argv) {
     return arg;
 }
 
-bool flags_parse_flag(Flag *flag, int *argc, char ***argv) {
+bool flags_parse_flag(Flag *flag, char *arg) {
     flag->provided = true;
 
     switch (flag->type) {
         case FLAG_CSTR: {
-            char *arg = shift_args(argc, argv);
             *flag->flag_cstr.value = arg;
         } break;
 
         case FLAG_INT: {
-            char *arg = shift_args(argc, argv);
-
             char *arg_end;
             int value = strtol(arg, &arg_end, 10);
             // @TODO: Do we want a user error in case of invalid integer arguments?
@@ -142,7 +139,7 @@ bool flags_parse_flags(int argc, char **argv) {
                 return false;
             }
 
-            if (!flags_parse_flag(&positionals[positional_i], &argc, &argv)) {
+            if (!flags_parse_flag(&positionals[positional_i], arg)) {
                 return false;
             }
             positional_i++;
@@ -154,7 +151,8 @@ bool flags_parse_flags(int argc, char **argv) {
                 Flag *flag = &flags[j];
 
                 if (strcmp(arg, flag->option) == 0) {
-                    if (!flags_parse_flag(flag, &argc, &argv)) {
+                    char *arg = shift_args(&argc, &argv);
+                    if (!flags_parse_flag(flag, arg)) {
                         return false;
                     }
                     flag_found = true;

@@ -67,21 +67,19 @@ bool parse_options(int argc, char **argv) {
 
 int main(int argc, char **argv) {
     // Parse command line options.
-    // @TODO: Flag parsing library.
     if (!parse_options(argc, argv)) {
         return 1;
     }
 
-    char *file_name = "test.img";
-    int fd = open(file_name, O_RDWR);
+    int fd = open(options.image_name, O_RDWR);
     if (fd == -1) {
-        fprintf(stderr, "ERROR: Could not open file %s: %s\n", file_name, strerror(errno));
+        fprintf(stderr, "ERROR: Could not open file %s: %s\n", options.image_name, strerror(errno));
         return 1;
     }
 
     uint8_t *mapped_img = mmap(NULL, SECTOR_COUNT * SECTOR_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (mapped_img == MAP_FAILED) {
-        fprintf(stderr, "ERROR: Could not mmap file %s: %s\n", file_name, strerror(errno));
+        fprintf(stderr, "ERROR: Could not mmap file %s: %s\n", options.image_name, strerror(errno));
         close(fd);
         return 1;
     }
@@ -98,7 +96,7 @@ int main(int argc, char **argv) {
 
     // Make sure the changes propagate to the file.
     if (msync(mapped_img, SECTOR_COUNT * SECTOR_SIZE, MS_SYNC) == -1) {
-        fprintf(stderr, "ERROR: Could not sync changes to file %s: %s\n", file_name, strerror(errno));
+        fprintf(stderr, "ERROR: Could not sync changes to file %s: %s\n", options.image_name, strerror(errno));
         munmap(mapped_img, SECTOR_COUNT * SECTOR_SIZE);
         close(fd);
         return 1;
