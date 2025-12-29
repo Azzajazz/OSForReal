@@ -57,12 +57,12 @@ void parse_format_options(Format_Options *options, int argc, char **argv) {
 
     // Parse the given options.
     flags_add_cstr_positional(&options->image_name, "image_name", "name of the image to format");
-    flags_add_int_flag(&options->sector_count, "-sector-count", "number of sectors in the image");
-    flags_add_int_flag(&options->sector_size, "-sector-size", "size of a sector");
-    flags_add_int_flag(&options->file_meta_sector_count, "-fm-sectors", "number of sectors in the file metadata section");
-    flags_add_int_flag(&options->tag_meta_sector_count, "-tm-sectors", "number of sectors in the tag metadata section");
-    flags_add_int_flag(&options->tag_file_sector_count, "-tf-sectors", "number of sectors in the tag file map");
-    flags_add_int_flag(&options->fat_sector_count, "-fat-sectors", "number of sectors in the file allocation table (FAT)");
+    flags_add_int_flag(&options->sector_count, "-sector-count", "number of sectors in the image", false);
+    flags_add_int_flag(&options->sector_size, "-sector-size", "size of a sector", false);
+    flags_add_int_flag(&options->file_meta_sector_count, "-fm-sectors", "number of sectors in the file metadata section", false);
+    flags_add_int_flag(&options->tag_meta_sector_count, "-tm-sectors", "number of sectors in the tag metadata section", false);
+    flags_add_int_flag(&options->tag_file_sector_count, "-tf-sectors", "number of sectors in the tag file map", false);
+    flags_add_int_flag(&options->fat_sector_count, "-fat-sectors", "number of sectors in the file allocation table (FAT)", false);
 
     char *program_name = shift_args(&argc, &argv);
     char *subcommand = shift_args(&argc, &argv);
@@ -127,15 +127,15 @@ void format_image(int argc, char **argv) {
 
 typedef struct {
     char *src_file_path;
-    char *dest_file_name;
+    char *dst_file_name;
 
     char *image_name;
 } Write_File_Options;
 
 void parse_write_file_options(Write_File_Options *options, int argc, char **argv) {
     flags_add_cstr_positional(&options->image_name, "image_name", "name of the image to format");
-    flags_add_cstr_flag(&options->src_file_path, "-src", "path of the file to copy to the image");
-    flags_add_cstr_flag(&options->src_file_path, "-src", "name of the file on the image");
+    flags_add_cstr_flag(&options->src_file_path, "-src", "path of the file to copy to the image", true);
+    flags_add_cstr_flag(&options->dst_file_name, "-dst", "name of the file on the image", false);
 
     char *program_name = shift_args(&argc, &argv);
     char *subcommand = shift_args(&argc, &argv);
@@ -153,6 +153,8 @@ void parse_write_file_options(Write_File_Options *options, int argc, char **argv
 void write_file(int argc, char **argv) {
     Write_File_Options options = {0};
     parse_write_file_options(&options, argc, argv);
+
+    
 }
 
 
@@ -167,6 +169,9 @@ int main(int argc, char **argv) {
 
     if (strcmp(subcommand, "format") == 0) {
         format_image(argc, argv);
+    }
+    else if (strcmp(subcommand, "write-file") == 0) {
+        write_file(argc, argv);
     }
     else {
         printf("Unknown subcommand %s\n\n.", subcommand);

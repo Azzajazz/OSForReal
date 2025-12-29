@@ -40,7 +40,7 @@ static int flag_index;
 static Flag positionals[POSITIONAL_COUNT] = {0};
 static int positional_index;
 
-void flags_add_cstr_flag(char **value, char *option, char *description) {
+void flags_add_cstr_flag(char **value, char *option, char *description, bool required) {
     assert(flag_index < FLAG_COUNT);
     Flag *flag = &flags[flag_index];
     flag_index++;
@@ -49,10 +49,11 @@ void flags_add_cstr_flag(char **value, char *option, char *description) {
     flag->option = option;
     flag->description = description;
     flag->provided = false;
+    flag->required = required;
     flag->flag_cstr.value = value;
 }
 
-void flags_add_int_flag(int *value, char *option, char *description) {
+void flags_add_int_flag(int *value, char *option, char *description, bool required) {
     assert(flag_index < FLAG_COUNT);
     Flag *flag = &flags[flag_index];
     flag_index++;
@@ -61,10 +62,11 @@ void flags_add_int_flag(int *value, char *option, char *description) {
     flag->option = option;
     flag->description = description;
     flag->provided = false;
+    flag->required = required;
     flag->flag_int.value = value;
 }
 
-void flags_add_bool_flag(bool *value, char *option, char *description) {
+void flags_add_bool_flag(bool *value, char *option, char *description, bool required) {
     assert(flag_index < FLAG_COUNT);
     Flag *flag = &flags[flag_index];
     flag_index++;
@@ -73,6 +75,7 @@ void flags_add_bool_flag(bool *value, char *option, char *description) {
     flag->option = option;
     flag->description = description;
     flag->provided = false;
+    flag->required = required;
     flag->flag_bool.value = value;
 }
 
@@ -177,7 +180,7 @@ bool flags_parse_flags(int argc, char **argv) {
     for (int i = 0; i < flag_index; i++) {
         Flag flag = flags[i];
         if (flag.required && !flag.provided) {
-            printf("Argument <%s> is required, but was not given.\n\n", flag.option);
+            printf("Option %s is required, but was not given.\n\n", flag.option);
             return false;
         }
     }
@@ -202,6 +205,10 @@ void flags_print_help(char *program_name) {
     printf("\nOPTIONS:\n");
     for (int i = 0; i < flag_index; i++) {
         Flag flag = flags[i];
-        printf("  %s: %s\n", flag.option, flag.description);
+        printf("  %s", flag.option);
+        if (flag.required) {
+            printf(" (required)");
+        }
+        printf(": %s\n", flag.description);
     }
 }
