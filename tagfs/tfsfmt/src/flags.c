@@ -106,7 +106,6 @@ bool flags_parse_flag(Flag *flag, char *arg) {
         case FLAG_INT: {
             char *arg_end;
             int value = strtol(arg, &arg_end, 10);
-            // @TODO: Do we want a user error in case of invalid integer arguments?
             if (errno == ERANGE) {
                 printf("%s %s: Integer out of range.\n\n", flag->option, arg);
                 return false;
@@ -186,17 +185,13 @@ bool flags_parse_flags(int argc, char **argv) {
     return true;
 }
 
-void flags_print_help(char *program_name, char *usage_suffix) {
-    if (usage_suffix == NULL) {
-        usage_suffix = "[OPTIONS]";
-    }
-    
+void flags_print_help(char *program_name) {
     printf("Usage: %s", program_name);
     for (int i = 0; i < positional_index; i++) {
         Flag positional = positionals[i];
         printf(" <%s>", positional.option);
     }
-    printf(" %s\n\n", usage_suffix);
+    printf(" [OPTIONS]\n\n");
 
     printf("Positional arguments:\n");
     for (int i = 0; i < positional_index; i++) {
