@@ -11,6 +11,8 @@
 
 #include "flags.c"
 
+#define PACKED __attribute__((packed))
+
 typedef struct {
     uint32_t version;
     uint32_t sector_count;
@@ -19,7 +21,15 @@ typedef struct {
     uint32_t tag_meta_sector_count;
     uint32_t tag_file_sector_count;
     uint32_t fat_sector_count;
+    uint16_t free_file_id;
+    uint16_t free_tag_id;
 } FS_Metadata;
+
+typedef struct PACKED {
+    uint16_t id;
+    uint32_t first_data_sector;
+    char name[26];
+} File_Metadata;
 
 void print_usage(char *program_name) {
     printf("Usage: %s <subcommand> [OPTIONS]\n\n", program_name);
@@ -81,8 +91,6 @@ void format_image(int argc, char **argv) {
     // Parse command line options.
     Format_Options options;
     parse_format_options(&options, argc, argv);
-        exit(1);
-    
 
     int fd = open(options.image_name, O_RDWR);
     if (fd == -1) {
@@ -106,6 +114,10 @@ void format_image(int argc, char **argv) {
     fs_meta->tag_meta_sector_count = options.tag_meta_sector_count;
     fs_meta->tag_file_sector_count = options.tag_file_sector_count;
     fs_meta->fat_sector_count = options.fat_sector_count;
+    fs_meta->free_file_id = 1;
+    fs_meta->free_tag_id = 1;
+
+    // @TODO: Set the id of the first file metadata entry to 0.
 
     // Make sure the changes propagate to the file.
     if (msync(mapped_img, options.sector_count * options.sector_size, MS_SYNC) == -1) {
@@ -133,6 +145,9 @@ typedef struct {
 } Write_File_Options;
 
 void parse_write_file_options(Write_File_Options *options, int argc, char **argv) {
+    // Set default dst_file_name.
+    options->dst_file_name = NULL;
+
     flags_add_cstr_positional(&options->image_name, "image_name", "name of the image to format");
     flags_add_cstr_flag(&options->src_file_path, "-src", "path of the file to copy to the image", true);
     flags_add_cstr_flag(&options->dst_file_name, "-dst", "name of the file on the image", false);
@@ -148,13 +163,73 @@ void parse_write_file_options(Write_File_Options *options, int argc, char **argv
         free(prefix);
         exit(1);
     }
+
+    // Fill in dst_file_name if not provided.
+    if (options->dst_file_name == NULL) {
+        char *last_slash = strrchr(options->src_file_path, '/');
+        if (last_slash == NULL) {
+            options->dst_file_name = options->src_file_path;
+        }
+        else {
+            options->dst_file_name = last_slash + 1;
+        }
+    }
 }
 
 void write_file(int argc, char **argv) {
     Write_File_Options options = {0};
     parse_write_file_options(&options, argc, argv);
 
-    
+    int fd = open(options.image_name, O_RDWR);
+    if (fd == -1) {
+        fprintf(stderr, "ERROR: Could not open file %s: %s\n", options.image_name, strerror(errno));
+        exit(1);
+    }
+
+    uint8_t *mapped_img = mmap(NULL, options.sector_count * options.sector_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    if (mapped_img == MAP_FAILED) {
+        fprintf(stderr, "ERROR: Could not mmap file %s: %s\n", options.image_name, strerror(errno));
+        close(fd);
+        exit(1);
+    }
+
+    FS_Metadata *fs_meta = (FS_Metadata*)(mapped_img + options.sector_size);
+    File_Metadata *file_meta = (File_Metadata*)(mapped_img + 2 * options.sector_size);
+
+    // Find the first free file metadata entry.
+    while (file_meta->id != 0) {
+        file_meta++;
+    }
+
+    // Update the id.
+    file_meta->id = fs_meta->free_file_id;
+    fs_meta->free_file_id++;
+    (file_meta + 1)->id = 0;
+
+    // Copy the data over.
+
+    // Set the name.
+    if (strlen(options->dst_file_name) > 25) {
+        fprintf(stderr, "ERROR: Destination file name too long. Must be less than 26 characters.");
+        munmap(mapped_img, options.sector_count * options.sector_size);
+        close(fd);
+        exit(1);
+    }
+    strcpy(file->name, options->dst_file_name);
+
+    // Make sure the changes propagate to the file.
+    if (msync(mapped_img, options.sector_count * options.sector_size, MS_SYNC) == -1) {
+        fprintf(stderr, "ERROR: Could not sync changes to file %s: %s\n", options.image_name, strerror(errno));
+        munmap(mapped_img, options.sector_count * options.sector_size);
+        close(fd);
+        exit(1);
+    }
+
+    munmap(mapped_img, options.sector_count * options.sector_size);
+    close(fd);
+
+    // - Also need to know the first free data sector, but that's from the FAT.
+    // Write file data (using FAT + data section).
 }
 
 
