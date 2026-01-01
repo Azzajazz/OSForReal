@@ -4,6 +4,8 @@
 
 1. [Overview](#overview)
 2. [File system format](#format)
+    1. [Boot sector](#boot-sector)
+    2. [
 ***TODO: Tips on writing drivers?***
 
 ## Overview<a name="overview"></a>
@@ -23,36 +25,30 @@ TagFS aims to be an on-disk tagged file system. In a tagged file system, there a
 - Boot sector
 - FS metadata block
 
-|Boot sector|FS metadata|File metadata|Tag metadata|Tag-File map|FAT|Data|
-|-----------|-----------|-------------|------------|------------|---|----|
+|Boot sector|File metadata|Tag metadata|Tag-File map|FAT|Data|
+|-----------|-------------|------------|------------|---|----|
 
 ### Boot sector
 
-The boot sector contains only the bootloader. TagFS does not store any file system data in this block.
-
-**Size:** `512` bytes
-**Byte Offset:** `0`
-
-### FS Metadata
-
-The FS metadata block takes up the next sector and has the following structure:
+The boot sector is a single sector beginning with an FS metadata structure. The FS metadata has the following structure:
 
 |Offset|Size|Name                    |Description                                        |
 |:-----|:---|:-----------------------|:--------------------------------------------------|
-|0     |4   |`version`               |Version number of the TagFS file system. Must be 1.|
-|4     |4   |`sector_size`           |Size of a sector in bytes.                         |
-|8     |4   |`sector_count`          |Number of sectors on the storage media.            |
-|12    |4   |`file_meta_sector_count`|Size of the file metadata section in sectors.      |
-|16    |4   |`tag_meta_sector_count` |Size of the tag metadata section in sectors.       |
-|20    |4   |`tag_file_sector_count` |Size of the tag file map section in sectors.       |
-|24    |4   |`fat_sector_count`      |Size of the FAT section in sectors.                |
-|28    |2   |`free_file_id`          |A file id that is not used yet.                    |
-|30    |2   |`free_tag_id`           |A tag id that is not used yet.                     |
+|0     |4   |`jump`                  |Jump instruction.                                  |
+|4     |4   |`version`               |Version number of the TagFS file system. Must be 1.|
+|8     |4   |`sector_size`           |Size of a sector in bytes.                         |
+|12    |4   |`sector_count`          |Number of sectors on the storage media.            |
+|16    |4   |`file_meta_sector_count`|Size of the file metadata section in sectors.      |
+|20    |4   |`tag_meta_sector_count` |Size of the tag metadata section in sectors.       |
+|24    |4   |`tag_file_sector_count` |Size of the tag file map section in sectors.       |
+|28    |4   |`fat_sector_count`      |Size of the FAT section in sectors.                |
+|32    |2   |`free_file_id`          |A file id that is not used yet.                    |
+|34    |2   |`free_tag_id`           |A tag id that is not used yet.                     |
 
 Tag ids and file ids are incrementing 16-bit unsigned integers. In case of wraparound, all file and tag ids must be updated to be contiguous from 1 and `free_file_id` and `free_tag_id` should be the next unused integer. This operation is expensive, but happens very rarely.
 
-**Size:** `32` bytes
-**Byte Offset:** `512`
+**Size:** `sector size` bytes
+**Byte Offset:** `0`
 
 ### File Metadata
 
@@ -68,7 +64,7 @@ The `id` field must be unique over all file metadata entries. An `id` of 0 indic
 Duplicate file names are supported by TagFS, but the file system driver may enforce unique file names if desired.
 
 **Size:** `32 * # of entries` bytes
-**Byte Offset:** `512 + FS metadata sector count * sector size`
+**Byte Offset:** `sector size`
 
 ### Tag Metadata
 
@@ -81,7 +77,7 @@ The tag metadata block contains tag metadata entries of the following form:
 ***TODO: Probably need some other stuff here.***
 
 **Size:** `32 * # of entries` bytes
-**Byte Offset:** `512 + (FS metadata sector count + file metadata sector count) * sector size`
+**Byte Offset:** `(1 + file metadata sector count) * sector size`
 
 ### Tag File Map
 
@@ -92,7 +88,7 @@ The tag file map is an on-disk associative array between tag ids and file ids. E
 |2     |4   |`file_id`|The file id.|
 
 **Size:** `# of sectors in tag file map * sector size` bytes
-**Byte Offset:** `512 + (FS metadata sector count + file metadata sector count + tag metadata sector count) * sector size`
+**Byte Offset:** `(1 + file metadata sector count + tag metadata sector count) * sector size`
 
 ### FAT + Data
 

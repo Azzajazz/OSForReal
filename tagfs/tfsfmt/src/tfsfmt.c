@@ -13,7 +13,8 @@
 
 #define PACKED __attribute__((packed))
 
-typedef struct {
+typedef struct PACKED {
+    uint32_t jump;
     uint32_t version;
     uint32_t sector_count;
     uint32_t sector_size;
@@ -30,6 +31,39 @@ typedef struct PACKED {
     uint32_t first_data_sector;
     char name[26];
 } File_Metadata;
+
+void read_fs_metadata(FS_Metadata *fs_meta, int fd) {
+    // @TODO: Read until we completely fill up the FS_Metadata
+    lseek(fd, 0, SEEK_SET);
+    read(fd, fs_meta, sizeof(*fs_meta));
+}
+
+File_Metadata *get_file_metadata(uint8_t *base, FS_Metadata *fs_meta) {
+    return (File_Metadata*)(base + fs_meta->sector_size);
+}
+
+uint16_t *get_fat(uint8_t *base, FS_Metadata *fs_meta) {
+    return (uint16_t*)(
+        base + (
+            1 +
+            fs_meta->file_meta_sector_count +
+            fs_meta->tag_meta_sector_count +
+            fs_meta->tag_file_sector_count
+        ) * fs_meta->sector_size
+    );
+}
+
+uint8_t *get_data(uint8_t *base, FS_Metadata *fs_meta) {
+    return (
+        base + (
+            1 +
+            fs_meta->file_meta_sector_count +
+            fs_meta->tag_meta_sector_count +
+            fs_meta->tag_file_sector_count +
+            fs_meta->fat_sector_count
+        ) * fs_meta->sector_size
+    );
+}
 
 void print_usage(char *program_name) {
     printf("Usage: %s <subcommand> [OPTIONS]\n\n", program_name);
@@ -82,7 +116,6 @@ void parse_format_options(Format_Options *options, int argc, char **argv) {
         char *prefix = calloc(strlen(program_name) + strlen(subcommand) + 2, 1);
         sprintf(prefix, "%s %s", program_name, subcommand);
         flags_print_help(prefix);
-        free(prefix);
         exit(1);
     }
 }
@@ -101,12 +134,11 @@ void format_image(int argc, char **argv) {
     uint8_t *mapped_img = mmap(NULL, options.sector_count * options.sector_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (mapped_img == MAP_FAILED) {
         fprintf(stderr, "ERROR: Could not mmap file %s: %s\n", options.image_name, strerror(errno));
-        close(fd);
         exit(1);
     }
 
     // Write the FS metadata block.
-    FS_Metadata *fs_meta = (FS_Metadata*)(mapped_img + options.sector_size);
+    FS_Metadata *fs_meta = (FS_Metadata*)mapped_img;
     fs_meta->version = 1;
     fs_meta->sector_count = options.sector_count;
     fs_meta->sector_size = options.sector_size;
@@ -122,13 +154,8 @@ void format_image(int argc, char **argv) {
     // Make sure the changes propagate to the file.
     if (msync(mapped_img, options.sector_count * options.sector_size, MS_SYNC) == -1) {
         fprintf(stderr, "ERROR: Could not sync changes to file %s: %s\n", options.image_name, strerror(errno));
-        munmap(mapped_img, options.sector_count * options.sector_size);
-        close(fd);
         exit(1);
     }
-
-    munmap(mapped_img, options.sector_count * options.sector_size);
-    close(fd);
 }
 
 
@@ -186,15 +213,16 @@ void write_file(int argc, char **argv) {
         exit(1);
     }
 
-    uint8_t *mapped_img = mmap(NULL, options.sector_count * options.sector_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    FS_Metadata fs_meta;
+    read_fs_metadata(&fs_meta, fd);
+
+    uint8_t *mapped_img = mmap(NULL, fs_meta.sector_count * fs_meta.sector_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (mapped_img == MAP_FAILED) {
         fprintf(stderr, "ERROR: Could not mmap file %s: %s\n", options.image_name, strerror(errno));
-        close(fd);
         exit(1);
     }
 
-    FS_Metadata *fs_meta = (FS_Metadata*)(mapped_img + options.sector_size);
-    File_Metadata *file_meta = (File_Metadata*)(mapped_img + 2 * options.sector_size);
+    File_Metadata *file_meta = get_file_metadata(mapped_img, &fs_meta);
 
     // Find the first free file metadata entry.
     while (file_meta->id != 0) {
@@ -202,34 +230,64 @@ void write_file(int argc, char **argv) {
     }
 
     // Update the id.
-    file_meta->id = fs_meta->free_file_id;
-    fs_meta->free_file_id++;
+    file_meta->id = fs_meta.free_file_id;
+    ((FS_Metadata*)mapped_img)->free_file_id++;
     (file_meta + 1)->id = 0;
 
     // Copy the data over.
+    FILE *src_file = fopen(options.src_file_path, "rb");
+    if (src_file == NULL) {
+        fprintf(stderr, "ERROR: Could not open file %s\n.", options.src_file_path);
+        exit(1);
+    }
+    uint16_t *fat = get_fat(mapped_img, &fs_meta);
+    uint8_t *data = get_data(mapped_img, &fs_meta);
+    int num_fat_entries = fs_meta.fat_sector_count * fs_meta.sector_size / 2;
+
+    int fat_index = 0;
+    for (;fat_index < num_fat_entries; fat_index++) {
+        if (fat[fat_index] == 0) {
+            break;
+        }
+    }
+    if (fat_index == num_fat_entries) {
+        fprintf(stderr, "WARNING: File has been truncated. Not enough space.\n");
+        return;
+    }
+
+    file_meta->first_data_sector = fat_index;
+
+    while (!feof(src_file)) {
+        fread(data + fat_index * fs_meta.sector_size, fs_meta.sector_size, 1, src_file);
+
+        int old_fat_index = fat_index;
+        fat_index++;
+        for (;fat_index < num_fat_entries; fat_index++) {
+            if (fat[fat_index] == 0) {
+                break;
+            }
+        }
+        if (fat_index == num_fat_entries) {
+            fprintf(stderr, "WARNING: File has been truncated. Not enough space.\n");
+            break;
+        }
+        fat[old_fat_index] = fat_index;
+    }
+
+    fat[fat_index] = 0xffff;
 
     // Set the name.
-    if (strlen(options->dst_file_name) > 25) {
+    if (strlen(options.dst_file_name) > 25) {
         fprintf(stderr, "ERROR: Destination file name too long. Must be less than 26 characters.");
-        munmap(mapped_img, options.sector_count * options.sector_size);
-        close(fd);
         exit(1);
     }
-    strcpy(file->name, options->dst_file_name);
+    strcpy(file_meta->name, options.dst_file_name);
 
     // Make sure the changes propagate to the file.
-    if (msync(mapped_img, options.sector_count * options.sector_size, MS_SYNC) == -1) {
+    if (msync(mapped_img, fs_meta.sector_count * fs_meta.sector_size, MS_SYNC) == -1) {
         fprintf(stderr, "ERROR: Could not sync changes to file %s: %s\n", options.image_name, strerror(errno));
-        munmap(mapped_img, options.sector_count * options.sector_size);
-        close(fd);
         exit(1);
     }
-
-    munmap(mapped_img, options.sector_count * options.sector_size);
-    close(fd);
-
-    // - Also need to know the first free data sector, but that's from the FAT.
-    // Write file data (using FAT + data section).
 }
 
 
