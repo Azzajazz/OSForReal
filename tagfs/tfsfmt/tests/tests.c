@@ -73,3 +73,52 @@ bool tfsfmt_test_format_with_default_args() {
 
     return true;
 }
+
+bool tfsfmt_test_format_with_custom_args() {
+    size_t image_size = 1024 * 1111;
+    int fd = create_fs_image(image_name, image_size);
+
+    char *argv[] = {
+        "./build/tfsfmt", "format",
+        "-sector-count", "1111",
+        "-sector-size", "1024",
+        "-fm-sectors", "20",
+        "-tm-sectors", "5",
+        "-tf-sectors", "3",
+        "-fat-sectors", "3",
+        image_name, 0};
+    run_until_completion("./build/tfsfmt", argv);
+
+    uint8_t *mapped_img = mmap(NULL, image_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+
+    FS_Metadata *fs_meta = (FS_Metadata*)mapped_img;
+    ASSERT(fs_meta->version == 1);
+    ASSERT(fs_meta->sector_count == 1111);
+    ASSERT(fs_meta->sector_size == 1024);
+    ASSERT(fs_meta->file_meta_sector_count == 20);
+    ASSERT(fs_meta->tag_meta_sector_count == 5);
+    ASSERT(fs_meta->tag_file_sector_count == 3);
+    ASSERT(fs_meta->fat_sector_count == 3);
+    ASSERT(fs_meta->free_file_id == 1);
+    ASSERT(fs_meta->free_tag_id == 1);
+
+    File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
+    ASSERT(file_meta->id == 0);
+
+    Tag_Metadata *tag_meta = get_tag_metadata(mapped_img, fs_meta);
+    ASSERT(tag_meta->id == 0);
+
+    Tag_File_Entry *tag_file = get_tag_file_array(mapped_img, fs_meta);
+    ASSERT(tag_file->tag_id == 0);
+
+    uint16_t *fat = get_fat(mapped_img, fs_meta);
+    int num_fat_entries = fs_meta->fat_sector_count * fs_meta->sector_size / 2;
+    for (int i = 0; i < num_fat_entries; i++) {
+        ASSERT(fat[i] == 0);
+    }
+
+    msync(mapped_img, image_size, MS_SYNC);
+    close(fd);
+
+    return true;
+}
