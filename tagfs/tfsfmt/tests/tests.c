@@ -35,29 +35,29 @@ bool tfsfmt_test_format_with_default_args() {
     uint8_t *mapped_img = mmap(NULL, image_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 
     FS_Metadata *fs_meta = (FS_Metadata*)mapped_img;
-    ASSERT_EQ(fs_meta->version == 1);
-    ASSERT_EQ(fs_meta->sector_count == 1000);
-    ASSERT_EQ(fs_meta->sector_size == 512);
-    ASSERT_EQ(fs_meta->file_meta_sector_count == 10);
-    ASSERT_EQ(fs_meta->tag_meta_sector_count == 10);
-    ASSERT_EQ(fs_meta->tag_file_sector_count == 10);
-    ASSERT_EQ(fs_meta->fat_sector_count == 2);
-    ASSERT_EQ(fs_meta->free_file_id == 1);
-    ASSERT_EQ(fs_meta->free_tag_id == 1);
+    ASSERT(fs_meta->version == 1);
+    ASSERT(fs_meta->sector_count == 1000);
+    ASSERT(fs_meta->sector_size == 512);
+    ASSERT(fs_meta->file_meta_sector_count == 10);
+    ASSERT(fs_meta->tag_meta_sector_count == 10);
+    ASSERT(fs_meta->tag_file_sector_count == 10);
+    ASSERT(fs_meta->fat_sector_count == 2);
+    ASSERT(fs_meta->free_file_id == 1);
+    ASSERT(fs_meta->free_tag_id == 1);
 
     File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
-    ASSERT_EQ(file_meta->id == 0);
+    ASSERT(file_meta->id == 0);
 
     Tag_Metadata *tag_meta = get_tag_metadata(mapped_img, fs_meta);
-    ASSERT_EQ(tag_meta->id == 0);
+    ASSERT(tag_meta->id == 0);
 
     Tag_File_Entry *tag_file = get_tag_file_array(mapped_img, fs_meta);
-    ASSERT_EQ(tag_file->tag_id == 0);
+    ASSERT(tag_file->tag_id == 0);
 
     uint16_t *fat = get_fat(mapped_img, fs_meta);
     int num_fat_entries = fs_meta->fat_sector_count * fs_meta->sector_size / 2;
     for (int i = 0; i < num_fat_entries; i++) {
-        ASSERT_EQ(fat[i] == 0);
+        ASSERT(fat[i] == 0);
     }
 
     msync(mapped_img, image_size, MS_SYNC);
