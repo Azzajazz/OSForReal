@@ -81,7 +81,7 @@ The tag metadata block contains tag metadata entries of the following form:
 
 ### Tag File Map
 
-The tag file map is an on-disk associative array between tag ids and file ids. Each entry has the following structure:
+The tag file map is an on-disk associative array between tag ids and file ids. Entries are stored contiguously from the start of the tag file map, with the first unoccupied entry marked with `tag_id == 0`. Each entry has the following structure:
 |Offset|Size|Name     |Description |
 |:-----|:---|:--------|:-----------|
 |0     |2   |`tag_id` |The tag id. |

@@ -1,45 +1,65 @@
-#include <stdbool.h>
-#include <stdio.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <sys/wait.h>
 
-typedef bool (*Test_Fn)();
+#include "../src/utils.c"
 
-typedef struct {
-    char *name;
-    Test_Fn function;
-} Test;
+char *image_name = "test_tmp.img";
 
-#define TEST(test_name) \
-    (Test){.name = #test_name, .function = test_name}
-
-#define ARRAY_LEN(arr) (sizeof((arr)) / sizeof((arr)[0]))
-
-bool dummy_test() {
-    return true;
+void run_until_completion(char *path, char **argv) {
+    int pid = fork();
+    if (pid == 0) {
+        // Child process.
+        execvp(path, argv);
+    }
+    else {
+        waitpid(pid, NULL, 0);
+    }
 }
 
-Test tests[] = {
-    TEST(dummy_test),
-};
+void create_fs_image(char *name, size_t size) {
+    int fd = creat(name, S_IRUSR | S_IWUSR);
+    ftruncate(fd, size);
+    close(fd);
+}
 
-int main() {
-    int passed = 0;
-    int failed = 0;
+bool tfsfmt_test_format_with_default_args() {
+    size_t image_size = 512000;
+    create_fs_image(image_name, image_size);
 
-    for (size_t i = 0; i < ARRAY_LEN(tests); i++) {
-        Test test = tests[i];
-        printf("Running test %s... ", test.name);
+    char *argv[] = {"./build/tfsfmt", "format", image_name, 0};
+    run_until_completion("./build/tfsfmt", argv);
 
-        bool result = test.function();
-        if (result) {
-            printf("OK!\n");
-            passed += 1;
-        }
-        else {
-            printf("FAIL!\n");
-            failed += 1;
-        }
+    int fd = open(image_name, O_RDWR);
+    uint8_t *mapped_img = mmap(NULL, image_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 
-        printf("--------------------\n");
-        printf("PASSED: %d, FAILED: %d\n", passed, failed);
+    FS_Metadata *fs_meta = (FS_Metadata*)mapped_img;
+    ASSERT_EQ(fs_meta->version == 1);
+    ASSERT_EQ(fs_meta->sector_count == 1000);
+    ASSERT_EQ(fs_meta->sector_size == 512);
+    ASSERT_EQ(fs_meta->file_meta_sector_count == 10);
+    ASSERT_EQ(fs_meta->tag_meta_sector_count == 10);
+    ASSERT_EQ(fs_meta->tag_file_sector_count == 10);
+    ASSERT_EQ(fs_meta->fat_sector_count == 2);
+    ASSERT_EQ(fs_meta->free_file_id == 1);
+    ASSERT_EQ(fs_meta->free_tag_id == 1);
+
+    File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
+    ASSERT_EQ(file_meta->id == 0);
+
+    Tag_Metadata *tag_meta = get_tag_metadata(mapped_img, fs_meta);
+    ASSERT_EQ(tag_meta->id == 0);
+
+    Tag_File_Entry *tag_file = get_tag_file_array(mapped_img, fs_meta);
+    ASSERT_EQ(tag_file->tag_id == 0);
+
+    uint16_t *fat = get_fat(mapped_img, fs_meta);
+    int num_fat_entries = fs_meta->fat_sector_count * fs_meta->sector_size / 2;
+    for (int i = 0; i < num_fat_entries; i++) {
+        ASSERT_EQ(fat[i] == 0);
     }
+
+    msync(mapped_img, image_size, MS_SYNC);
+    return true;
 }

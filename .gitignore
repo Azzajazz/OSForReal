@@ -1,4 +1,4 @@
 toolchain
 build
 isodir
-tagfs_FUSE/partition.bin
+*.img
