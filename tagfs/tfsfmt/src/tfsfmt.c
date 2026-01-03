@@ -96,7 +96,18 @@ void format_image(int argc, char **argv) {
     fs_meta->free_file_id = 1;
     fs_meta->free_tag_id = 1;
 
-    // @TODO: Set the id of the first file metadata entry to 0.
+    File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
+    file_meta->id = 0;
+
+    Tag_Metadata *tag_meta = get_tag_metadata(mapped_img, fs_meta);
+    tag_meta->id = 0;
+
+    Tag_File_Entry *tag_file = get_tag_file_array(mapped_img, fs_meta);
+    tag_file->tag_id = 0;
+
+    uint16_t *fat = get_fat(mapped_img, fs_meta);
+    size_t fat_byte_count = fs_meta->fat_sector_count * fs_meta->sector_size;
+    memset(fat, 0, fat_byte_count);
 
     // Make sure the changes propagate to the file.
     if (msync(mapped_img, options.sector_count * options.sector_size, MS_SYNC) == -1) {
