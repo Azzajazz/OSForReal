@@ -10,6 +10,7 @@
     - Expand on docs as needed.
     - Write tfsfmt utility.
         - TESTS
+            X Write deterministic random data to a file.
         X Format an image.
         X Create a file in a formatted image.
         - Create a tag in a formatted image.

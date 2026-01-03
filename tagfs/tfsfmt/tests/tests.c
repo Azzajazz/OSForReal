@@ -2,6 +2,7 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/wait.h>
+#include <string.h>
 
 #include "../src/utils.c"
 
@@ -18,20 +19,27 @@ void run_until_completion(char *path, char **argv) {
     }
 }
 
-void create_fs_image(char *name, size_t size) {
-    int fd = creat(name, S_IRUSR | S_IWUSR);
+int create_fs_image(char *name, size_t size) {
+    int fd = open(name, O_CREAT | O_TRUNC | O_RDWR, S_IRUSR | S_IWUSR);
+    uint8_t dummy_data[1024];
+    memset(dummy_data, 0xaa, 1024);
+
+    size_t written = 0;
+    while (written < size) {
+        written += write(fd, dummy_data, 1024);
+    }
     ftruncate(fd, size);
-    close(fd);
+
+    return fd;
 }
 
 bool tfsfmt_test_format_with_default_args() {
     size_t image_size = 512000;
-    create_fs_image(image_name, image_size);
+    int fd = create_fs_image(image_name, image_size);
 
     char *argv[] = {"./build/tfsfmt", "format", image_name, 0};
     run_until_completion("./build/tfsfmt", argv);
 
-    int fd = open(image_name, O_RDWR);
     uint8_t *mapped_img = mmap(NULL, image_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 
     FS_Metadata *fs_meta = (FS_Metadata*)mapped_img;
@@ -61,5 +69,7 @@ bool tfsfmt_test_format_with_default_args() {
     }
 
     msync(mapped_img, image_size, MS_SYNC);
+    close(fd);
+
     return true;
 }
