@@ -33,8 +33,14 @@ int create_fs_image(char *name, size_t size) {
     return fd;
 }
 
+
+
+// --------------------------------------------------
+// FORMAT SUBCOMMAND TESTS
+// --------------------------------------------------
+
 bool tfsfmt_test_format_with_default_args() {
-    size_t image_size = 512000;
+    size_t image_size = 512 * 1000;
     int fd = create_fs_image(image_name, image_size);
 
     char *argv[] = {"./build/tfsfmt", "format", image_name, 0};
@@ -116,6 +122,47 @@ bool tfsfmt_test_format_with_custom_args() {
     for (int i = 0; i < num_fat_entries; i++) {
         ASSERT(fat[i] == 0);
     }
+
+    msync(mapped_img, image_size, MS_SYNC);
+    close(fd);
+
+    return true;
+}
+
+
+
+// --------------------------------------------------
+// WRITE-FILE SUBCOMMAND TESTS
+// --------------------------------------------------
+
+bool tfsfmt_test_write_file_less_than_one_sector() {
+    size_t image_size = 512 * 1000;
+    int fd = create_fs_image(image_name, image_size);
+
+    char *format_argv[] = {"./build/tfsfmt", "format", image_name, 0};
+    run_until_completion("./build/tfsfmt", format_argv);
+
+    char *write_file_argv[] = {"./build/tfsfmt", "write-file", "-src", "tests/one_sector.txt", image_name, 0};
+    run_until_completion("./build/tfsfmt", write_file_argv);
+
+    uint8_t *mapped_img = mmap(NULL, image_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+
+    FS_Metadata *fs_meta = (FS_Metadata*)mapped_img;
+    ASSERT(fs_meta->free_file_id == 2);
+
+    File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
+    ASSERT(file_meta->id == 1);
+    ASSERT(file_meta->first_data_sector == 0);
+    int cmp_result = strcmp(file_meta->name, "one_sector.txt");
+    ASSERT(cmp_result == 0);
+
+    uint16_t *fat = get_fat(mapped_img, fs_meta);
+    ASSERT(fat[0] == 0xffff);
+    ASSERT(fat[1] == 0);
+
+    uint8_t *data = get_data(mapped_img, fs_meta);
+    cmp_result = memcmp(data, "Hello, world!", 13);
+    ASSERT(cmp_result == 0);
 
     msync(mapped_img, image_size, MS_SYNC);
     close(fd);
