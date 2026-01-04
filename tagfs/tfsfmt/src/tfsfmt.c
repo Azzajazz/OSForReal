@@ -214,14 +214,9 @@ void write_file(int argc, char **argv) {
     }
 
     file_meta->first_data_sector = fat_index;
+    fread(data + fat_index * fs_meta.sector_size, fs_meta.sector_size, 1, src_file);
 
-    for (;;) {
-        fread(data + fat_index * fs_meta.sector_size, fs_meta.sector_size, 1, src_file);
-        if (feof(src_file)) {
-            fat[fat_index] = 0xffff;
-            break;
-        }
-
+    while (!feof(src_file)) {
         int old_fat_index = fat_index;
         fat_index++;
         for (;fat_index < num_fat_entries; fat_index++) {
@@ -234,7 +229,9 @@ void write_file(int argc, char **argv) {
             break;
         }
         fat[old_fat_index] = fat_index;
+        fread(data + fat_index * fs_meta.sector_size, fs_meta.sector_size, 1, src_file);
     }
+    fat[fat_index] = 0xffff;
 
     // Set the name.
     if (strlen(options.dst_file_name) > 25) {
