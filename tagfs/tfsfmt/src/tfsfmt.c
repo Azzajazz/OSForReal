@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <inttypes.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -16,6 +17,13 @@ void print_usage(char *program_name) {
     printf("Usage: %s <subcommand> [OPTIONS]\n\n", program_name);
     printf("Subcommands:\n");
     printf("  format: format a file system image.\n");
+}
+
+size_t get_file_size(FILE *file) {
+    fseek(file, 0, SEEK_END);
+    size_t size = ftell(file);
+    rewind(file);
+    return size;
 }
 
 
@@ -180,6 +188,9 @@ void write_file(int argc, char **argv) {
         exit(1);
     }
 
+    FILE *src_file = fopen(options.src_file_path, "rb");
+    size_t src_size = get_file_size(src_file);
+
     File_Metadata *file_meta = get_file_metadata(mapped_img, &fs_meta);
 
     // Find the first free file metadata entry.
@@ -192,8 +203,14 @@ void write_file(int argc, char **argv) {
     ((FS_Metadata*)mapped_img)->free_file_id++;
     (file_meta + 1)->id = 0;
 
+    // Update the size.
+    if (src_size > UINT32_MAX) {
+        fprintf(stderr, "ERROR: File %s is too big. Maximum size is %"PRIu32" bytes.\n", options.src_file_path, UINT32_MAX);
+        exit(1);
+    }
+    file_meta->size = src_size;
+
     // Copy the data over.
-    FILE *src_file = fopen(options.src_file_path, "rb");
     if (src_file == NULL) {
         fprintf(stderr, "ERROR: Could not open file %s\n.", options.src_file_path);
         exit(1);
@@ -214,9 +231,15 @@ void write_file(int argc, char **argv) {
     }
 
     file_meta->first_data_sector = fat_index;
-    fread(data + fat_index * fs_meta.sector_size, fs_meta.sector_size, 1, src_file);
 
-    while (!feof(src_file)) {
+    size_t bytes_copied = 0;
+    for (;;) {
+        bytes_copied += fread(data + fat_index * fs_meta.sector_size, 1, fs_meta.sector_size, src_file);
+        if (bytes_copied == src_size) {
+            fat[fat_index] = 0xffff;
+            break;
+        }
+
         int old_fat_index = fat_index;
         fat_index++;
         for (;fat_index < num_fat_entries; fat_index++) {
@@ -229,13 +252,13 @@ void write_file(int argc, char **argv) {
             break;
         }
         fat[old_fat_index] = fat_index;
-        fread(data + fat_index * fs_meta.sector_size, fs_meta.sector_size, 1, src_file);
     }
-    fat[fat_index] = 0xffff;
+
+    fclose(src_file);
 
     // Set the name.
-    if (strlen(options.dst_file_name) > 25) {
-        fprintf(stderr, "ERROR: Destination file name too long. Must be less than 26 characters.");
+    if (strlen(options.dst_file_name) > 21) {
+        fprintf(stderr, "ERROR: Destination file name too long. Must be less than 21 characters.");
         exit(1);
     }
     strcpy(file_meta->name, options.dst_file_name);
