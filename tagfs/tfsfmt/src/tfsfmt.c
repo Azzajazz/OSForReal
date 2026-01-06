@@ -258,7 +258,7 @@ void write_file(int argc, char **argv) {
 
     // Set the name.
     if (strlen(options.dst_file_name) > 21) {
-        fprintf(stderr, "ERROR: Destination file name too long. Must be less than 21 characters.");
+        fprintf(stderr, "ERROR: Destination file name too long. Must be less than 22 characters.");
         exit(1);
     }
     strcpy(file_meta->name, options.dst_file_name);
