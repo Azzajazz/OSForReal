@@ -13,7 +13,7 @@
             X Write deterministic random data to a file.
         X Format an image.
         X Create a file in a formatted image.
-        - Create a tag in a formatted image.
+        X Create a tag in a formatted image.
         - Link a tag to a file.
     - FUSE driver.
     - Port TagFS to OSForReal.

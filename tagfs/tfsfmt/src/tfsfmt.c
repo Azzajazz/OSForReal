@@ -201,6 +201,7 @@ void write_file(int argc, char **argv) {
     // Update the id.
     file_meta->id = fs_meta.free_file_id;
     ((FS_Metadata*)mapped_img)->free_file_id++;
+    // @BUG: What if this is the last file metadata entry?
     (file_meta + 1)->id = 0;
 
     // Update the size.
@@ -272,6 +273,82 @@ void write_file(int argc, char **argv) {
 
 
 
+// --------------------------------------------------
+// WRITE-TAG SUBCOMMAND
+// --------------------------------------------------
+
+typedef struct {
+    char *image_name;
+    char *tag_name;
+} Write_Tag_Options;
+
+void parse_write_tag_options(Write_Tag_Options *options, int argc, char **argv) {
+    flags_add_cstr_positional(&options->image_name, "image_name", "name of the image to format");
+    flags_add_cstr_flag(&options->tag_name, "-tag", "name of the tag to write", true);
+
+    char *program_name = shift_args(&argc, &argv);
+    char *subcommand = shift_args(&argc, &argv);
+    if (!flags_parse_flags(argc, argv)) {
+        // @TODO: Temporary memory arena allocator.
+        // @TODO: Add subcommand support to flag library?
+        char *prefix = calloc(strlen(program_name) + strlen(subcommand) + 2, 1);
+        sprintf(prefix, "%s %s", program_name, subcommand);
+        flags_print_help(prefix);
+        free(prefix);
+        exit(1);
+    }
+}
+
+void write_tag(int argc, char **argv) {
+    Write_Tag_Options options;
+    parse_write_tag_options(&options, argc, argv);
+
+    int fd = open(options.image_name, O_RDWR);
+    if (fd == -1) {
+        fprintf(stderr, "ERROR: Could not open file %s: %s\n", options.image_name, strerror(errno));
+        exit(1);
+    }
+
+    FS_Metadata fs_meta;
+    read_fs_metadata(&fs_meta, fd);
+
+    uint8_t *mapped_img = mmap(NULL, fs_meta.sector_count * fs_meta.sector_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    if (mapped_img == MAP_FAILED) {
+        fprintf(stderr, "ERROR: Could not mmap file %s: %s\n", options.image_name, strerror(errno));
+        exit(1);
+    }
+
+    // Find the first empty tag metadata entry
+    Tag_Metadata *tag_meta = get_tag_metadata(mapped_img, &fs_meta);
+    while (tag_meta->id != 0) {
+        tag_meta++;
+    }
+
+    // Update the id.
+    tag_meta->id = fs_meta.free_tag_id;
+    ((FS_Metadata*)mapped_img)->free_tag_id++;
+    // @BUG: What if this is the last tag metadata section?
+    (tag_meta + 1)->id = 0;
+
+    // @TODO: Do we really need a data offset?
+    tag_meta->first_data_sector = 0;
+
+    // Set the name.
+    if (strlen(options.tag_name) > 25) {
+        fprintf(stderr, "ERROR: Destination file name too long. Must be less than 26 characters.");
+        exit(1);
+    }
+    strcpy(tag_meta->name, options.tag_name);
+
+    // Make sure the changes propagate to the file.
+    if (msync(mapped_img, fs_meta.sector_count * fs_meta.sector_size, MS_SYNC) == -1) {
+        fprintf(stderr, "ERROR: Could not sync changes to file %s: %s\n", options.image_name, strerror(errno));
+        exit(1);
+    }
+}
+
+
+
 int main(int argc, char **argv) {
     char *subcommand = argv[1];
     if (subcommand == NULL) {
@@ -285,6 +362,9 @@ int main(int argc, char **argv) {
     }
     else if (strcmp(subcommand, "write-file") == 0) {
         write_file(argc, argv);
+    }
+    else if (strcmp(subcommand, "write-tag") == 0) {
+        write_tag(argc, argv);
     }
     else {
         printf("Unknown subcommand %s\n\n.", subcommand);

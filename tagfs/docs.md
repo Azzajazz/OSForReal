@@ -5,7 +5,7 @@
 1. [Overview](#overview)
 2. [File system format](#format)
     1. [Boot sector](#boot-sector)
-    2. [
+***TODO: Finish table of contents***
 ***TODO: Tips on writing drivers?***
 
 ## Overview<a name="overview"></a>

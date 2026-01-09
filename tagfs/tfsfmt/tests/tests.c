@@ -273,6 +273,42 @@ bool tfsfmt_test_write_file_many_sectors() {
     return true;
 }
 
+
+
+// --------------------------------------------------
+// WRITE-TAG SUBCOMMAND TESTS
+// --------------------------------------------------
+
+bool tfsfmt_test_write_tag() {
+    size_t image_size = 512 * 1000;
+    int fd = create_fs_image(image_name, image_size);
+    char *tag_name = "mytag";
+
+    char *format_argv[] = {"./build/tfsfmt", "format", image_name, 0};
+    run_until_completion("./build/tfsfmt", format_argv);
+
+    char *write_tag_argv[] = {"./build/tfsfmt", "write-tag", "-tag", tag_name, image_name, 0};
+    run_until_completion("./build/tfsfmt", write_tag_argv);
+
+    uint8_t *mapped_img = mmap(NULL, image_size, PROT_READ, MAP_SHARED, fd, 0);
+
+    FS_Metadata *fs_meta = (FS_Metadata*)mapped_img;
+    ASSERT(fs_meta->free_tag_id == 2);
+
+    Tag_Metadata *tag_meta = get_tag_metadata(mapped_img, fs_meta);
+    ASSERT(tag_meta->id == 1);
+    ASSERT(tag_meta->first_data_sector == 0);
+    int cmp_result = strcmp(tag_meta->name, tag_name);
+    ASSERT(cmp_result == 0);
+
+    munmap(mapped_img, image_size);
+    close(fd);
+
+    return true;
+}
+
+
+
 // --------------------------------------------------
 // TEST ARRAY
 // --------------------------------------------------
@@ -283,4 +319,5 @@ Test tests[] = {
     TEST(tfsfmt_test_write_file_less_than_one_sector),
     TEST(tfsfmt_test_write_file_exactly_one_sector),
     TEST(tfsfmt_test_write_file_many_sectors),
+    TEST(tfsfmt_test_write_tag),
 };
