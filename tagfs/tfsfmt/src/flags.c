@@ -3,6 +3,7 @@
 
 typedef enum {
     FLAG_CSTR,
+    FLAG_CSTR_ARRAY,
     FLAG_INT,
     FLAG_BOOL,
 } Flag_Type;
@@ -10,6 +11,12 @@ typedef enum {
 typedef struct {
     char **value;
 } Flag_Cstr;
+
+typedef struct {
+    char **value;
+    int index;
+    int max_len;
+} Flag_Cstr_Array;
 
 typedef struct {
     int *value;
@@ -27,6 +34,7 @@ typedef struct {
     bool required;
     union {
         Flag_Cstr flag_cstr;
+        Flag_Cstr_Array flag_cstr_array;
         Flag_Int flag_int;
         Flag_Bool flag_bool;
     };
@@ -51,6 +59,21 @@ void flags_add_cstr_flag(char **value, char *option, char *description, bool req
     flag->provided = false;
     flag->required = required;
     flag->flag_cstr.value = value;
+}
+
+void flags_add_cstr_array_flag(char **value, int max_len, char *option, char *description, bool required) {
+    assert(flag_index < FLAG_COUNT);
+    Flag *flag = &flags[flag_index];
+    flag_index++;
+
+    flag->type = FLAG_CSTR_ARRAY;
+    flag->option = option;
+    flag->description = description;
+    flag->provided = false;
+    flag->required = required;
+    flag->flag_cstr_array.value = value;
+    flag->flag_cstr_array.index = 0;
+    flag->flag_cstr_array.max_len = max_len;
 }
 
 void flags_add_int_flag(int *value, char *option, char *description, bool required) {
@@ -104,6 +127,16 @@ bool flags_parse_flag(Flag *flag, char *arg) {
     switch (flag->type) {
         case FLAG_CSTR: {
             *flag->flag_cstr.value = arg;
+        } break;
+
+        case FLAG_CSTR_ARRAY: {
+            Flag_Cstr_Array flag_array = flag->flag_cstr_array;
+            if (flag_array.index >= flag_array.max_len) {
+                printf("%s: Too many of this argument (maximum is %d).\n", flag->option, flag_array.max_len);
+                return false;
+            }
+            flag_array.value[flag_array.index] = arg;
+            flag->flag_cstr_array.index++;
         } break;
 
         case FLAG_INT: {
@@ -206,6 +239,9 @@ void flags_print_help(char *program_name) {
     for (int i = 0; i < flag_index; i++) {
         Flag flag = flags[i];
         printf("  %s", flag.option);
+        if (flag.type == FLAG_CSTR_ARRAY) {
+            printf(" (array)");
+        }
         if (flag.required) {
             printf(" (required)");
         }
