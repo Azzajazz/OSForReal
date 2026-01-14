@@ -14,7 +14,7 @@ typedef struct {
 
 typedef struct {
     char **value;
-    int index;
+    int* index;
     int max_len;
 } Flag_Cstr_Array;
 
@@ -61,7 +61,7 @@ void flags_add_cstr_flag(char **value, char *option, char *description, bool req
     flag->flag_cstr.value = value;
 }
 
-void flags_add_cstr_array_flag(char **value, int max_len, char *option, char *description, bool required) {
+void flags_add_cstr_array_flag(char **value, int* parsed, int max_len, char *option, char *description, bool required) {
     assert(flag_index < FLAG_COUNT);
     Flag *flag = &flags[flag_index];
     flag_index++;
@@ -72,7 +72,7 @@ void flags_add_cstr_array_flag(char **value, int max_len, char *option, char *de
     flag->provided = false;
     flag->required = required;
     flag->flag_cstr_array.value = value;
-    flag->flag_cstr_array.index = 0;
+    flag->flag_cstr_array.index = parsed;
     flag->flag_cstr_array.max_len = max_len;
 }
 
@@ -131,12 +131,12 @@ bool flags_parse_flag(Flag *flag, char *arg) {
 
         case FLAG_CSTR_ARRAY: {
             Flag_Cstr_Array flag_array = flag->flag_cstr_array;
-            if (flag_array.index >= flag_array.max_len) {
+            if (*flag_array.index >= flag_array.max_len) {
                 printf("%s: Too many of this argument (maximum is %d).\n", flag->option, flag_array.max_len);
                 return false;
             }
-            flag_array.value[flag_array.index] = arg;
-            flag->flag_cstr_array.index++;
+            flag_array.value[*flag_array.index] = arg;
+            *flag->flag_cstr_array.index += 1;
         } break;
 
         case FLAG_INT: {

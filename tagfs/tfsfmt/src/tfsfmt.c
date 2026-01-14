@@ -17,6 +17,7 @@ void print_usage(char *program_name) {
     printf("Usage: %s <subcommand> [OPTIONS]\n\n", program_name);
     printf("Subcommands:\n");
     printf("  format: format a file system image.\n");
+    // @TODO: Add subcommand support to flags library.
 }
 
 size_t get_file_size(FILE *file) {
@@ -130,20 +131,23 @@ void format_image(int argc, char **argv) {
 // WRITE-FILE SUBCOMMAND
 // --------------------------------------------------
 
+#define MAX_FILE_SPECS 32
+#define MAX_TAGS 32
 typedef struct {
-    char *src_file_path;
-    char *dst_file_name;
+    char *file_specs[MAX_FILE_SPECS];
+    int file_specs_parsed;
+    char *tags[MAX_TAGS];
+    int tags_parsed;
 
     char *image_name;
-} Write_File_Options;
+} Write_Files_Options;
 
-void parse_write_file_options(Write_File_Options *options, int argc, char **argv) {
-    // Set default dst_file_name.
-    options->dst_file_name = NULL;
-
+void parse_write_files_options(Write_Files_Options *options, int argc, char **argv) {
     flags_add_cstr_positional(&options->image_name, "image_name", "name of the image to format");
-    flags_add_cstr_flag(&options->src_file_path, "-src", "path of the file to copy to the image", true);
-    flags_add_cstr_flag(&options->dst_file_name, "-dst", "name of the file on the image", false);
+    flags_add_cstr_array_flag(options->file_specs, &options->file_specs_parsed, MAX_FILE_SPECS, "-file", "source path and destination name of the file in `src:dst` format", true);
+    // @TODO: This is a lot of arguments now. Not sure I like it.
+    // Maybe this is a place for some sort of bounded dynamic array type?
+    flags_add_cstr_array_flag(options->tags, &options->tags_parsed, MAX_TAGS, "-tag", "name of a tag to link to provided files", false);
 
     char *program_name = shift_args(&argc, &argv);
     char *subcommand = shift_args(&argc, &argv);
@@ -156,22 +160,25 @@ void parse_write_file_options(Write_File_Options *options, int argc, char **argv
         free(prefix);
         exit(1);
     }
-
-    // Fill in dst_file_name if not provided.
-    if (options->dst_file_name == NULL) {
-        char *last_slash = strrchr(options->src_file_path, '/');
-        if (last_slash == NULL) {
-            options->dst_file_name = options->src_file_path;
-        }
-        else {
-            options->dst_file_name = last_slash + 1;
-        }
-    }
 }
 
-void write_file(int argc, char **argv) {
-    Write_File_Options options = {0};
-    parse_write_file_options(&options, argc, argv);
+bool is_tagfs_file(char *src_file_path, char *dst_file_name, size_t file_size) {
+    if (file_size > UINT32_MAX) {
+        fprintf(stderr, "SKIPPING %s: File is too big. Maximum size is %"PRIu32" bytes.\n", src_file_path, UINT32_MAX);
+        return false;
+    }
+
+    if (strlen(dst_file_name) > 21) {
+        fprintf(stderr, "SKIPPING %s: Destination file name too long. Must be less than 22 characters.\n", src_file_path);
+        return false;
+    }
+
+    return true;
+}
+
+void write_files(int argc, char **argv) {
+    Write_Files_Options options = {0};
+    parse_write_files_options(&options, argc, argv);
 
     int fd = open(options.image_name, O_RDWR);
     if (fd == -1) {
@@ -179,93 +186,97 @@ void write_file(int argc, char **argv) {
         exit(1);
     }
 
-    FS_Metadata fs_meta;
-    read_fs_metadata(&fs_meta, fd);
+    FS_Metadata fs_meta_for_size;
+    read_fs_metadata(&fs_meta_for_size, fd);
 
-    uint8_t *mapped_img = mmap(NULL, fs_meta.sector_count * fs_meta.sector_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    uint8_t *mapped_img = mmap(NULL, fs_meta_for_size.sector_count * fs_meta_for_size.sector_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (mapped_img == MAP_FAILED) {
         fprintf(stderr, "ERROR: Could not mmap file %s: %s\n", options.image_name, strerror(errno));
         exit(1);
     }
 
-    FILE *src_file = fopen(options.src_file_path, "rb");
-    size_t src_size = get_file_size(src_file);
+    FS_Metadata *fs_meta = (FS_Metadata*)mapped_img;
 
-    File_Metadata *file_meta = get_file_metadata(mapped_img, &fs_meta);
+    // @TODO: Skip writing, or overwrite, if file is already in the image.
+    for (int i = 0; i < options.file_specs_parsed; ++i) {
+        char *src_file_path = strtok(options.file_specs[i], ":");
+        char *dst_file_name = strtok(NULL, "\0");
 
-    // Find the first free file metadata entry.
-    while (file_meta->id != 0) {
-        file_meta++;
-    }
-
-    // Update the id.
-    file_meta->id = fs_meta.free_file_id;
-    ((FS_Metadata*)mapped_img)->free_file_id++;
-    // @BUG: What if this is the last file metadata entry?
-    (file_meta + 1)->id = 0;
-
-    // Update the size.
-    if (src_size > UINT32_MAX) {
-        fprintf(stderr, "ERROR: File %s is too big. Maximum size is %"PRIu32" bytes.\n", options.src_file_path, UINT32_MAX);
-        exit(1);
-    }
-    file_meta->size = src_size;
-
-    // Copy the data over.
-    if (src_file == NULL) {
-        fprintf(stderr, "ERROR: Could not open file %s\n.", options.src_file_path);
-        exit(1);
-    }
-    uint16_t *fat = get_fat(mapped_img, &fs_meta);
-    uint8_t *data = get_data(mapped_img, &fs_meta);
-    int num_fat_entries = fs_meta.fat_sector_count * fs_meta.sector_size / 2;
-
-    int fat_index = 0;
-    for (;fat_index < num_fat_entries; fat_index++) {
-        if (fat[fat_index] == 0) {
-            break;
+        FILE *src_file = fopen(src_file_path, "rb");
+        if (src_file == NULL) {
+            fprintf(stderr, "SKIPPING %s: File not found.\n", src_file_path);
+            continue;
         }
-    }
-    if (fat_index == num_fat_entries) {
-        fprintf(stderr, "WARNING: File has been truncated. Not enough space.\n");
-        return;
-    }
-
-    file_meta->first_data_sector = fat_index;
-
-    size_t bytes_copied = 0;
-    for (;;) {
-        bytes_copied += fread(data + fat_index * fs_meta.sector_size, 1, fs_meta.sector_size, src_file);
-        if (bytes_copied == src_size) {
-            fat[fat_index] = 0xffff;
-            break;
+        size_t src_size = get_file_size(src_file);
+        if (!is_tagfs_file(src_file_path, dst_file_name, src_size)) {
+            goto fail;
         }
 
-        int old_fat_index = fat_index;
-        fat_index++;
+        File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
+
+        // Find the first free file metadata entry.
+        while (file_meta->id != 0) {
+            file_meta++;
+        }
+
+        // Update the id.
+        file_meta->id = fs_meta->free_file_id;
+        ((FS_Metadata*)mapped_img)->free_file_id++;
+        // @BUG: What if this is the last file metadata entry?
+        (file_meta + 1)->id = 0;
+
+        // Update the size.
+        file_meta->size = src_size;
+
+        // Copy the data over.
+        uint16_t *fat = get_fat(mapped_img, fs_meta);
+        uint8_t *data = get_data(mapped_img, fs_meta);
+        int num_fat_entries = fs_meta->fat_sector_count * fs_meta->sector_size / 2;
+
+        int fat_index = 0;
         for (;fat_index < num_fat_entries; fat_index++) {
             if (fat[fat_index] == 0) {
                 break;
             }
         }
         if (fat_index == num_fat_entries) {
-            fprintf(stderr, "WARNING: File has been truncated. Not enough space.\n");
-            break;
+            fprintf(stderr, "WARNING: File %s has been truncated. Not enough space.\n", dst_file_name);
+            return;
         }
-        fat[old_fat_index] = fat_index;
-    }
 
-    fclose(src_file);
+        file_meta->first_data_sector = fat_index;
 
-    // Set the name.
-    if (strlen(options.dst_file_name) > 21) {
-        fprintf(stderr, "ERROR: Destination file name too long. Must be less than 22 characters.");
-        exit(1);
+        size_t bytes_copied = 0;
+        for (;;) {
+            bytes_copied += fread(data + fat_index * fs_meta->sector_size, 1, fs_meta->sector_size, src_file);
+            if (bytes_copied == src_size) {
+                fat[fat_index] = 0xffff;
+                break;
+            }
+
+            int old_fat_index = fat_index;
+            fat_index++;
+            for (;fat_index < num_fat_entries; fat_index++) {
+                if (fat[fat_index] == 0) {
+                    break;
+                }
+            }
+            if (fat_index == num_fat_entries) {
+                fprintf(stderr, "WARNING: File %s has been truncated. Not enough space.\n", dst_file_name);
+                break;
+            }
+            fat[old_fat_index] = fat_index;
+        }
+
+        // Set the name.
+        strcpy(file_meta->name, dst_file_name);
+
+fail:
+        fclose(src_file);
     }
-    strcpy(file_meta->name, options.dst_file_name);
 
     // Make sure the changes propagate to the file.
-    if (msync(mapped_img, fs_meta.sector_count * fs_meta.sector_size, MS_SYNC) == -1) {
+    if (msync(mapped_img, fs_meta->sector_count * fs_meta->sector_size, MS_SYNC) == -1) {
         fprintf(stderr, "ERROR: Could not sync changes to file %s: %s\n", options.image_name, strerror(errno));
         exit(1);
     }
@@ -360,8 +371,8 @@ int main(int argc, char **argv) {
     if (strcmp(subcommand, "format") == 0) {
         format_image(argc, argv);
     }
-    else if (strcmp(subcommand, "write-file") == 0) {
-        write_file(argc, argv);
+    else if (strcmp(subcommand, "write-files") == 0) {
+        write_files(argc, argv);
     }
     else if (strcmp(subcommand, "write-tag") == 0) {
         write_tag(argc, argv);
