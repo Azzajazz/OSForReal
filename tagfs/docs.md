@@ -42,10 +42,6 @@ The boot sector is a single sector beginning with an FS metadata structure. The 
 |20    |4   |`tag_meta_sector_count` |Size of the tag metadata section in sectors.       |
 |24    |4   |`tag_file_sector_count` |Size of the tag file map section in sectors.       |
 |28    |4   |`fat_sector_count`      |Size of the FAT section in sectors.                |
-|32    |2   |`free_file_id`          |A file id that is not used yet.                    |
-|34    |2   |`free_tag_id`           |A tag id that is not used yet.                     |
-
-Tag ids and file ids are incrementing 16-bit unsigned integers. In case of wraparound, all file and tag ids must be updated to be contiguous from 1 and `free_file_id` and `free_tag_id` should be the next unused integer. This operation is expensive, but happens very rarely.
 
 **Size:** `sector size` bytes
 **Byte Offset:** `0`
@@ -53,16 +49,14 @@ Tag ids and file ids are incrementing 16-bit unsigned integers. In case of wrapa
 ### File Metadata
 
 The file metadata block contains file metadata entries of the following form:
-|Offset|Size|Name               |Description                                             |
-|:-----|:---|:---               |:----------                                             |
-|0     |2   |`id`               |The unique identifier of the file.                      |
-|2     |4   |`first_data_sector`|Offset of the first segment of data in the data section.|
-|6     |4   |`size`             |Size of the file in bytes.                              |
-|10    |22  |`name`             |The name of the file, including a trailing null byte.   |
+|Offset|Size|Name               |Description                                                     |
+|:-----|:---|:------------------|:---------------------------------------------------------------|
+|2     |4   |`first_data_sector`|Offset of the first segment of data in the data section, plus 1.|
+|6     |4   |`size`             |Size of the file in bytes.                                      |
+|10    |22  |`name`             |The name of the file, including a trailing null byte.           |
 ***TODO: Probably need some other stuff here.***
 
-The `id` field must be unique over all file metadata entries. An `id` of 0 indicates that the metadata entry does not describe a file that exists.
-Duplicate file names are supported by TagFS, but the file system driver may enforce unique file names if desired.
+The file id is defined to be the index of its file metadata entry in the file metadata block, plus 1. If `first_data_sector == 0`, then this file metadata entry is empty.
 
 **Size:** `32 * # of entries` bytes
 **Byte Offset:** `sector size`
@@ -70,11 +64,12 @@ Duplicate file names are supported by TagFS, but the file system driver may enfo
 ### Tag Metadata
 
 The tag metadata block contains tag metadata entries of the following form:
-|Offset|Size|Name         |Description                                             |
-|:-----|:---|:---         |:----------                                             |
-|0     |2   |`id`         |The unique identifier of the tag.                       |
-|2     |4   |`data_offset`|Offset of the first segment of data in the data section.|
-|6     |26  |`name`       |The name of the tag.                                    |
+|Offset|Size|Name               |Description                                                     |
+|:-----|:---|:------------------|:---------------------------------------------------------------|
+|2     |4   |`first_data_sector`|Offset of the first segment of data in the data section, plus 1.|
+|6     |26  |`name`             |The name of the tag.                                            |
+
+The tag id is defined to be the index of its tag metadata entry in the tag metadata block, plus 1. If `first_data_sector == 0`, then this tag metadata entry is empty.
 ***TODO: Probably need some other stuff here.***
 
 **Size:** `32 * # of entries` bytes

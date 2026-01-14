@@ -14,16 +14,14 @@ typedef struct PACKED {
 } FS_Metadata;
 
 typedef struct PACKED {
-    uint16_t id;
     uint32_t first_data_sector;
     uint32_t size;
-    char name[22];
+    char name[24];
 } File_Metadata;
 
 typedef struct PACKED {
-    uint16_t id;
     uint32_t first_data_sector;
-    char name[26];
+    char name[28];
 } Tag_Metadata;
 
 typedef struct PACKED {

@@ -13,6 +13,9 @@
 #include "flags.c"
 #include "utils.c"
 
+// @TODO: Make a shared header of all useful macros.
+#define ARRAY_LEN(arr) (sizeof((arr)) / sizeof((arr)[0]))
+
 void print_usage(char *program_name) {
     printf("Usage: %s <subcommand> [OPTIONS]\n\n", program_name);
     printf("Subcommands:\n");
@@ -93,6 +96,8 @@ void format_image(int argc, char **argv) {
         exit(1);
     }
 
+    memset(mapped_img, 0, options.sector_count * options.sector_size);
+
     // Write the FS metadata block.
     FS_Metadata *fs_meta = (FS_Metadata*)mapped_img;
     fs_meta->version = 1;
@@ -102,21 +107,6 @@ void format_image(int argc, char **argv) {
     fs_meta->tag_meta_sector_count = options.tag_meta_sector_count;
     fs_meta->tag_file_sector_count = options.tag_file_sector_count;
     fs_meta->fat_sector_count = options.fat_sector_count;
-    fs_meta->free_file_id = 1;
-    fs_meta->free_tag_id = 1;
-
-    File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
-    file_meta->id = 0;
-
-    Tag_Metadata *tag_meta = get_tag_metadata(mapped_img, fs_meta);
-    tag_meta->id = 0;
-
-    Tag_File_Entry *tag_file = get_tag_file_array(mapped_img, fs_meta);
-    tag_file->tag_id = 0;
-
-    uint16_t *fat = get_fat(mapped_img, fs_meta);
-    size_t fat_byte_count = fs_meta->fat_sector_count * fs_meta->sector_size;
-    memset(fat, 0, fat_byte_count);
 
     // Make sure the changes propagate to the file.
     if (msync(mapped_img, options.sector_count * options.sector_size, MS_SYNC) == -1) {
@@ -128,15 +118,13 @@ void format_image(int argc, char **argv) {
 
 
 // --------------------------------------------------
-// WRITE-FILE SUBCOMMAND
+// WRITE-FILES SUBCOMMAND
 // --------------------------------------------------
 
-#define MAX_FILE_SPECS 32
-#define MAX_TAGS 32
 typedef struct {
-    char *file_specs[MAX_FILE_SPECS];
+    char *file_specs[32];
     int file_specs_parsed;
-    char *tags[MAX_TAGS];
+    char *tags[32];
     int tags_parsed;
 
     char *image_name;
@@ -144,10 +132,10 @@ typedef struct {
 
 void parse_write_files_options(Write_Files_Options *options, int argc, char **argv) {
     flags_add_cstr_positional(&options->image_name, "image_name", "name of the image to format");
-    flags_add_cstr_array_flag(options->file_specs, &options->file_specs_parsed, MAX_FILE_SPECS, "-file", "source path and destination name of the file in `src:dst` format", true);
+    flags_add_cstr_array_flag(options->file_specs, &options->file_specs_parsed, ARRAY_LEN(options->file_specs), "-file", "source path and destination name of the file in `src:dst` format", true);
     // @TODO: This is a lot of arguments now. Not sure I like it.
     // Maybe this is a place for some sort of bounded dynamic array type?
-    flags_add_cstr_array_flag(options->tags, &options->tags_parsed, MAX_TAGS, "-tag", "name of a tag to link to provided files", false);
+    flags_add_cstr_array_flag(options->tags, &options->tags_parsed, ARRAY_LEN(options->tags), "-tag", "name of a tag to link to provided files", false);
 
     char *program_name = shift_args(&argc, &argv);
     char *subcommand = shift_args(&argc, &argv);
@@ -168,8 +156,8 @@ bool is_tagfs_file(char *src_file_path, char *dst_file_name, size_t file_size) {
         return false;
     }
 
-    if (strlen(dst_file_name) > 21) {
-        fprintf(stderr, "SKIPPING %s: Destination file name too long. Must be less than 22 characters.\n", src_file_path);
+    if (strlen(dst_file_name) >= 24) {
+        fprintf(stderr, "SKIPPING %s: Destination file name too long. Must be less than 24 characters.\n", src_file_path);
         return false;
     }
 
@@ -197,7 +185,14 @@ void write_files(int argc, char **argv) {
 
     FS_Metadata *fs_meta = (FS_Metadata*)mapped_img;
 
-    // @TODO: Skip writing, or overwrite, if file is already in the image.
+    // @TODO: The user of the file system will want to look up files by name. This means that
+    // we either need to make names unique, or disamiguate with the file's id. Maybe we can disambiguate with
+    //     notes.txt#1
+    //     notes.txt#2
+    // etc. This will likely require a stable id, but I think I can make that happen.
+    //
+    // So we probably want an overwrite flag on write-files and the default behaviour to be write files with names that already exist as separate files.
+
     for (int i = 0; i < options.file_specs_parsed; ++i) {
         char *src_file_path = strtok(options.file_specs[i], ":");
         char *dst_file_name = strtok(NULL, "\0");
@@ -215,15 +210,9 @@ void write_files(int argc, char **argv) {
         File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
 
         // Find the first free file metadata entry.
-        while (file_meta->id != 0) {
+        while (file_meta->first_data_sector != 0) {
             file_meta++;
         }
-
-        // Update the id.
-        file_meta->id = fs_meta->free_file_id;
-        ((FS_Metadata*)mapped_img)->free_file_id++;
-        // @BUG: What if this is the last file metadata entry?
-        (file_meta + 1)->id = 0;
 
         // Update the size.
         file_meta->size = src_size;
@@ -244,7 +233,7 @@ void write_files(int argc, char **argv) {
             return;
         }
 
-        file_meta->first_data_sector = fat_index;
+        file_meta->first_data_sector = fat_index + 1;
 
         size_t bytes_copied = 0;
         for (;;) {
@@ -331,22 +320,16 @@ void write_tag(int argc, char **argv) {
 
     // Find the first empty tag metadata entry
     Tag_Metadata *tag_meta = get_tag_metadata(mapped_img, &fs_meta);
-    while (tag_meta->id != 0) {
+    while (tag_meta->first_data_sector != 0) {
         tag_meta++;
     }
 
-    // Update the id.
-    tag_meta->id = fs_meta.free_tag_id;
-    ((FS_Metadata*)mapped_img)->free_tag_id++;
-    // @BUG: What if this is the last tag metadata section?
-    (tag_meta + 1)->id = 0;
-
     // @TODO: Do we really need a data offset?
-    tag_meta->first_data_sector = 0;
+    tag_meta->first_data_sector = 1;
 
     // Set the name.
-    if (strlen(options.tag_name) > 25) {
-        fprintf(stderr, "ERROR: Destination file name too long. Must be less than 26 characters.");
+    if (strlen(options.tag_name) >= 28) {
+        fprintf(stderr, "ERROR: Destination file name too long. Must be less than 28 characters.");
         exit(1);
     }
     strcpy(tag_meta->name, options.tag_name);
