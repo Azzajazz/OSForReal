@@ -30,6 +30,75 @@ size_t get_file_size(FILE *file) {
     return size;
 }
 
+int filter_valid_tag_names(
+    char **tag_names, int tag_names_count,
+    char **filtered_tag_names
+) {
+    int filtered_tag_names_count = 0;
+
+    for (int i = 0; i < tag_names_count; i++) {
+        if (strlen(tag_names[i]) < 28) {
+            filtered_tag_names[filtered_tag_names_count] = tag_names[i];
+            filtered_tag_names_count++;
+        }
+        else {
+            fprintf(stderr, "SKIPPING %s: Tag name too long. Must be less than 28 characters.\n", tag_names[i]);
+        }
+    }
+
+    return filtered_tag_names_count;
+}
+
+uint16_t find_or_create_tag(FS_Metadata *fs_meta, Tag_Metadata *tag_meta, char *name) {
+    unsigned int tag_meta_entry_count = fs_meta->tag_meta_sector_count * fs_meta->sector_size / sizeof(Tag_Metadata);
+
+    // Try to find the tag.
+    for (uint16_t index = 0; index < tag_meta_entry_count; index++) {
+        if (strcmp(tag_meta[index].name, name) == 0) {
+            return index + 1;
+        }
+    }
+
+    // Otherwise, create the tag and return the index.
+    for (uint16_t index = 0; index < tag_meta_entry_count; index++) {
+        if (tag_meta[index].first_data_sector == 0) {
+            strcpy(tag_meta[index].name, name);
+            // @TODO: Do we need a data sector?
+            tag_meta[index].first_data_sector = 1;
+            return index + 1;
+        }
+    }
+
+    // @TODO: What to do if the tag metadata section is full?
+    return 0;
+}
+
+void link_tag_to_file(
+    FS_Metadata *fs_meta,
+    Tag_File_Entry *tag_file,
+    uint16_t tag_id, uint16_t file_id
+) {
+    int tag_file_entry_count = fs_meta->tag_file_sector_count * fs_meta->sector_size / sizeof(Tag_File_Entry);
+
+    // If the file and tag are already linked, then nothing to do.
+    for (int i = 0; i < tag_file_entry_count; i++) {
+        if (tag_file[i].tag_id == tag_id && tag_file[i].file_id == file_id) {
+            return;
+        }
+    }
+
+    // Otherwise, create the link.
+    for (int i = 0; i < tag_file_entry_count; i++) {
+        if (tag_file[i].tag_id == 0) {
+            tag_file[i].tag_id = tag_id;
+            tag_file[i].file_id = file_id;
+            return;
+        }
+    }
+
+    // @TODO: What if the tag file section is full?
+}
+
 
 
 // --------------------------------------------------
@@ -132,7 +201,7 @@ typedef struct {
 
 void parse_write_files_options(Write_Files_Options *options, int argc, char **argv) {
     flags_add_cstr_positional(&options->image_name, "image_name", "name of the image to format");
-    flags_add_cstr_array_flag(options->file_specs, &options->file_specs_parsed, ARRAY_LEN(options->file_specs), "-file", "source path and destination name of the file in `src:dst` format", true);
+    flags_add_cstr_array_flag(options->file_specs, &options->file_specs_parsed, ARRAY_LEN(options->file_specs), "-file", "source path and destination name of the file in `<source path>:<destination name>` format", true);
     // @TODO: This is a lot of arguments now. Not sure I like it.
     // Maybe this is a place for some sort of bounded dynamic array type?
     flags_add_cstr_array_flag(options->tags, &options->tags_parsed, ARRAY_LEN(options->tags), "-tag", "name of a tag to link to provided files", false);
@@ -168,6 +237,9 @@ void write_files(int argc, char **argv) {
     Write_Files_Options options = {0};
     parse_write_files_options(&options, argc, argv);
 
+    char *tags[ARRAY_LEN(options.tags)] = {0};
+    int tags_count = filter_valid_tag_names(options.tags, options.tags_parsed, tags);
+
     int fd = open(options.image_name, O_RDWR);
     if (fd == -1) {
         fprintf(stderr, "ERROR: Could not open file %s: %s\n", options.image_name, strerror(errno));
@@ -184,14 +256,11 @@ void write_files(int argc, char **argv) {
     }
 
     FS_Metadata *fs_meta = (FS_Metadata*)mapped_img;
-
-    // @TODO: The user of the file system will want to look up files by name. This means that
-    // we either need to make names unique, or disamiguate with the file's id. Maybe we can disambiguate with
-    //     notes.txt#1
-    //     notes.txt#2
-    // etc. This will likely require a stable id, but I think I can make that happen.
-    //
-    // So we probably want an overwrite flag on write-files and the default behaviour to be write files with names that already exist as separate files.
+    File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
+    Tag_Metadata *tag_meta = get_tag_metadata(mapped_img, fs_meta);
+    Tag_File_Entry *tag_file = get_tag_file_array(mapped_img, fs_meta);
+    uint16_t *fat = get_fat(mapped_img, fs_meta);
+    uint8_t *data = get_data(mapped_img, fs_meta);
 
     for (int i = 0; i < options.file_specs_parsed; ++i) {
         char *src_file_path = strtok(options.file_specs[i], ":");
@@ -207,19 +276,18 @@ void write_files(int argc, char **argv) {
             goto fail;
         }
 
-        File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
+        uint16_t file_id = 1;
 
         // Find the first free file metadata entry.
         while (file_meta->first_data_sector != 0) {
             file_meta++;
+            file_id++;
         }
 
         // Update the size.
         file_meta->size = src_size;
 
         // Copy the data over.
-        uint16_t *fat = get_fat(mapped_img, fs_meta);
-        uint8_t *data = get_data(mapped_img, fs_meta);
         int num_fat_entries = fs_meta->fat_sector_count * fs_meta->sector_size / 2;
 
         int fat_index = 0;
@@ -230,7 +298,7 @@ void write_files(int argc, char **argv) {
         }
         if (fat_index == num_fat_entries) {
             fprintf(stderr, "WARNING: File %s has been truncated. Not enough space.\n", dst_file_name);
-            return;
+            continue;
         }
 
         file_meta->first_data_sector = fat_index + 1;
@@ -259,6 +327,12 @@ void write_files(int argc, char **argv) {
 
         // Set the name.
         strcpy(file_meta->name, dst_file_name);
+
+        // Link the tags.
+        for (int i = 0; i < tags_count; i++) {
+            uint16_t tag_id = find_or_create_tag(fs_meta, tag_meta, tags[i]);
+            link_tag_to_file(fs_meta, tag_file, tag_id, file_id);
+        }
 
 fail:
         fclose(src_file);
