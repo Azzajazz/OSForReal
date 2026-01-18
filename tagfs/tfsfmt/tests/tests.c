@@ -506,6 +506,48 @@ bool tfsfmt_test_write_files_tag_metadata_is_full() {
     return true;
 }
 
+bool tfsfmt_test_write_files_no_colon_filespec() {
+    size_t image_size = 512 * 1000;
+    int fd = create_fs_image(image_name, image_size);
+    char *src_path = "tests/part_sector.txt";
+    char *dst_file = "part_sector.txt";
+    char *file_spec = "tests/part_sector.txt";
+    int src_fd = open(src_path, O_RDONLY);
+    size_t src_size = get_file_size(src_fd);
+    uint8_t *mapped_src = mmap(NULL, src_size, PROT_READ, MAP_SHARED, src_fd, 0);
+
+    char *format_argv[] = {"./build/tfsfmt", "format", image_name, 0};
+    run_until_completion("./build/tfsfmt", format_argv);
+
+    char *write_file_argv[] = {"./build/tfsfmt", "write-files", "-file", file_spec, image_name, 0};
+    run_until_completion("./build/tfsfmt", write_file_argv);
+
+    uint8_t *mapped_img = mmap(NULL, image_size, PROT_READ, MAP_SHARED, fd, 0);
+
+    FS_Metadata *fs_meta = (FS_Metadata*)mapped_img;
+
+    File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
+    ASSERT(file_meta->first_data_sector == 1);
+    ASSERT(file_meta->size == src_size);
+    int cmp_result = strcmp(file_meta->name, dst_file);
+    ASSERT(cmp_result == 0);
+
+    uint16_t *fat = get_fat(mapped_img, fs_meta);
+    ASSERT(fat[0] == 0xffff);
+    ASSERT(fat[1] == 0);
+
+    uint8_t *data = get_data(mapped_img, fs_meta);
+    cmp_result = memcmp(data, mapped_src, src_size);
+    ASSERT(cmp_result == 0);
+
+    munmap(mapped_img, image_size);
+    close(fd);
+    munmap(mapped_src, src_size);
+    close(src_fd);
+
+    return true;
+}
+
 bool tfsfmt_test_write_files_less_than_one_sector() {
     size_t image_size = 512 * 1000;
     int fd = create_fs_image(image_name, image_size);
@@ -1109,15 +1151,16 @@ Test tests[] = {
     TEST(tfsfmt_test_write_files_file_metadata_is_full),
     TEST(tfsfmt_test_write_files_tag_metadata_is_full),
     TEST(tfsfmt_test_write_files_tag_file_map_is_full),
-    //TEST(tfsfmt_test_write_files_less_than_one_sector),
-    //TEST(tfsfmt_test_write_files_exactly_one_sector),
-    //TEST(tfsfmt_test_write_files_many_sectors),
-    //TEST(tfsfmt_test_write_files_two_files),
-    //TEST(tfsfmt_test_write_files_same_file),
-    //TEST(tfsfmt_test_write_files_one_file_one_tag),
-    //TEST(tfsfmt_test_write_files_two_files_one_tag),
-    //TEST(tfsfmt_test_write_files_one_file_two_tags),
-    //TEST(tfsfmt_test_write_files_two_files_two_tags),
+    TEST(tfsfmt_test_write_files_no_colon_filespec),
+    TEST(tfsfmt_test_write_files_less_than_one_sector),
+    TEST(tfsfmt_test_write_files_exactly_one_sector),
+    TEST(tfsfmt_test_write_files_many_sectors),
+    TEST(tfsfmt_test_write_files_two_files),
+    TEST(tfsfmt_test_write_files_same_file),
+    TEST(tfsfmt_test_write_files_one_file_one_tag),
+    TEST(tfsfmt_test_write_files_two_files_one_tag),
+    TEST(tfsfmt_test_write_files_one_file_two_tags),
+    TEST(tfsfmt_test_write_files_two_files_two_tags),
 
     //TEST(tfsfmt_test_write_tag),
 };

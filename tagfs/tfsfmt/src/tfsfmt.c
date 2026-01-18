@@ -262,6 +262,17 @@ void write_files(int argc, char **argv) {
     for (int i = 0; i < options.file_specs_parsed; ++i) {
         char *src_file_path = strtok(options.file_specs[i], ":");
         char *dst_file_name = strtok(NULL, "\0");
+        if (dst_file_name == NULL) {
+            // This was not a colon-separated file spec. Set the destination name based
+            // on the source file path.
+            char *last_slash = strrchr(src_file_path, '/');
+            if (last_slash == NULL) {
+                dst_file_name = src_file_path;
+            }
+            else {
+                dst_file_name = last_slash + 1;
+            }
+        }
 
         FILE *src_file = fopen(src_file_path, "rb");
         if (src_file == NULL) {
