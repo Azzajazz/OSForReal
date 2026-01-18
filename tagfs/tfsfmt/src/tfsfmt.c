@@ -13,8 +13,6 @@
 #include "flags.c"
 #include "utils.c"
 
-// @TODO: Make a shared header of all useful macros.
-#define ARRAY_LEN(arr) (sizeof((arr)) / sizeof((arr)[0]))
 
 void print_usage(char *program_name) {
     printf("Usage: %s <subcommand> [OPTIONS]\n\n", program_name);
@@ -69,7 +67,6 @@ uint16_t find_or_create_tag(FS_Metadata *fs_meta, Tag_Metadata *tag_meta, char *
         }
     }
 
-    // @TODO: What to do if the tag metadata section is full?
     return 0;
 }
 
@@ -144,7 +141,7 @@ void parse_format_options(Format_Options *options, int argc, char **argv) {
         char *prefix = calloc(strlen(program_name) + strlen(subcommand) + 2, 1);
         sprintf(prefix, "%s %s", program_name, subcommand);
         flags_print_help(prefix);
-        exit(1);
+        exit(FAIL_PARSE_ARGS);
     }
 }
 
@@ -156,13 +153,13 @@ void format_image(int argc, char **argv) {
     int fd = open(options.image_name, O_RDWR);
     if (fd == -1) {
         fprintf(stderr, "ERROR: Could not open file %s: %s\n", options.image_name, strerror(errno));
-        exit(1);
+        exit(FAIL_IMG_NOT_FOUND);
     }
 
     uint8_t *mapped_img = mmap(NULL, options.sector_count * options.sector_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (mapped_img == MAP_FAILED) {
         fprintf(stderr, "ERROR: Could not mmap file %s: %s\n", options.image_name, strerror(errno));
-        exit(1);
+        exit(FAIL_GENERIC);
     }
 
     memset(mapped_img, 0, options.sector_count * options.sector_size);
@@ -180,7 +177,7 @@ void format_image(int argc, char **argv) {
     // Make sure the changes propagate to the file.
     if (msync(mapped_img, options.sector_count * options.sector_size, MS_SYNC) == -1) {
         fprintf(stderr, "ERROR: Could not sync changes to file %s: %s\n", options.image_name, strerror(errno));
-        exit(1);
+        exit(FAIL_GENERIC);
     }
 }
 
@@ -215,7 +212,7 @@ void parse_write_files_options(Write_Files_Options *options, int argc, char **ar
         sprintf(prefix, "%s %s", program_name, subcommand);
         flags_print_help(prefix);
         free(prefix);
-        exit(1);
+        exit(FAIL_PARSE_ARGS);
     }
 }
 
@@ -243,7 +240,7 @@ void write_files(int argc, char **argv) {
     int fd = open(options.image_name, O_RDWR);
     if (fd == -1) {
         fprintf(stderr, "ERROR: Could not open file %s: %s\n", options.image_name, strerror(errno));
-        exit(1);
+        exit(FAIL_IMG_NOT_FOUND);
     }
 
     FS_Metadata fs_meta_for_size;
@@ -252,7 +249,7 @@ void write_files(int argc, char **argv) {
     uint8_t *mapped_img = mmap(NULL, fs_meta_for_size.sector_count * fs_meta_for_size.sector_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (mapped_img == MAP_FAILED) {
         fprintf(stderr, "ERROR: Could not mmap file %s: %s\n", options.image_name, strerror(errno));
-        exit(1);
+        exit(FAIL_GENERIC);
     }
 
     FS_Metadata *fs_meta = (FS_Metadata*)mapped_img;
@@ -276,16 +273,18 @@ void write_files(int argc, char **argv) {
             goto fail;
         }
 
-        uint16_t file_id = 1;
-
-        // Find the first free file metadata entry.
-        while (file_meta->first_data_sector != 0) {
-            file_meta++;
-            file_id++;
+        unsigned int file_meta_count = fs_meta->file_meta_sector_count * fs_meta->sector_size / sizeof(File_Metadata);
+        uint16_t file_id = 0;
+        for (; file_id < file_meta_count; file_id++) {
+            if (file_meta[file_id].first_data_sector == 0) {
+                break;
+            }
         }
-
-        // Update the size.
-        file_meta->size = src_size;
+        if (file_id == file_meta_count) {
+            fprintf(stderr, "SKIPPING %s: File metadata is full.\n", src_file_path);
+            continue;
+        }
+        file_id++;
 
         // Copy the data over.
         int num_fat_entries = fs_meta->fat_sector_count * fs_meta->sector_size / 2;
@@ -301,7 +300,7 @@ void write_files(int argc, char **argv) {
             continue;
         }
 
-        file_meta->first_data_sector = fat_index + 1;
+        file_meta[file_id - 1].first_data_sector = fat_index + 1;
 
         size_t bytes_copied = 0;
         for (;;) {
@@ -320,18 +319,27 @@ void write_files(int argc, char **argv) {
             }
             if (fat_index == num_fat_entries) {
                 fprintf(stderr, "WARNING: File %s has been truncated. Not enough space.\n", dst_file_name);
+                fat[old_fat_index] = 0xffff;
                 break;
             }
             fat[old_fat_index] = fat_index;
         }
 
+        // Update the size.
+        file_meta[file_id - 1].size = bytes_copied;
+
         // Set the name.
-        strcpy(file_meta->name, dst_file_name);
+        strcpy(file_meta[file_id - 1].name, dst_file_name);
 
         // Link the tags.
         for (int i = 0; i < tags_count; i++) {
             uint16_t tag_id = find_or_create_tag(fs_meta, tag_meta, tags[i]);
-            link_tag_to_file(fs_meta, tag_file, tag_id, file_id);
+            if (tag_id > 0) {
+                link_tag_to_file(fs_meta, tag_file, tag_id, file_id);
+            }
+            else {
+                fprintf(stderr, "WARNING: Could not link tag %s to file %s; the tag needed to be created, but the tag metadata section is full.\n", tags[i], dst_file_name);
+            }
         }
 
 fail:
@@ -341,7 +349,7 @@ fail:
     // Make sure the changes propagate to the file.
     if (msync(mapped_img, fs_meta->sector_count * fs_meta->sector_size, MS_SYNC) == -1) {
         fprintf(stderr, "ERROR: Could not sync changes to file %s: %s\n", options.image_name, strerror(errno));
-        exit(1);
+        exit(FAIL_GENERIC);
     }
 }
 
@@ -369,7 +377,7 @@ void parse_write_tag_options(Write_Tag_Options *options, int argc, char **argv) 
         sprintf(prefix, "%s %s", program_name, subcommand);
         flags_print_help(prefix);
         free(prefix);
-        exit(1);
+        exit(FAIL_PARSE_ARGS);
     }
 }
 
@@ -380,7 +388,7 @@ void write_tag(int argc, char **argv) {
     int fd = open(options.image_name, O_RDWR);
     if (fd == -1) {
         fprintf(stderr, "ERROR: Could not open file %s: %s\n", options.image_name, strerror(errno));
-        exit(1);
+        exit(FAIL_IMG_NOT_FOUND);
     }
 
     FS_Metadata fs_meta;
@@ -389,7 +397,7 @@ void write_tag(int argc, char **argv) {
     uint8_t *mapped_img = mmap(NULL, fs_meta.sector_count * fs_meta.sector_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (mapped_img == MAP_FAILED) {
         fprintf(stderr, "ERROR: Could not mmap file %s: %s\n", options.image_name, strerror(errno));
-        exit(1);
+        exit(FAIL_GENERIC);
     }
 
     // Find the first empty tag metadata entry
@@ -404,14 +412,14 @@ void write_tag(int argc, char **argv) {
     // Set the name.
     if (strlen(options.tag_name) >= 28) {
         fprintf(stderr, "ERROR: Destination file name too long. Must be less than 28 characters.");
-        exit(1);
+        exit(FAIL_GENERIC);
     }
     strcpy(tag_meta->name, options.tag_name);
 
     // Make sure the changes propagate to the file.
     if (msync(mapped_img, fs_meta.sector_count * fs_meta.sector_size, MS_SYNC) == -1) {
         fprintf(stderr, "ERROR: Could not sync changes to file %s: %s\n", options.image_name, strerror(errno));
-        exit(1);
+        exit(FAIL_GENERIC);
     }
 }
 
@@ -422,7 +430,7 @@ int main(int argc, char **argv) {
     if (subcommand == NULL) {
         printf("No subcommand provided.\n\n");
         print_usage(argv[0]);
-        return 1;
+        exit(FAIL_PARSE_ARGS);
     }
 
     if (strcmp(subcommand, "format") == 0) {
@@ -437,6 +445,6 @@ int main(int argc, char **argv) {
     else {
         printf("Unknown subcommand %s\n\n.", subcommand);
         print_usage(argv[0]);
-        return 1;
+        exit(FAIL_PARSE_ARGS);
     }
 }

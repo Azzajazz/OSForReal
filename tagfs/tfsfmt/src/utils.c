@@ -1,3 +1,22 @@
+//
+// In case of unrecoverable failure, call exit() with one of these error codes. For tests that
+// expect tfsfmt to fail, use the exit code to determine how it failed.
+//
+typedef enum {
+    FAIL_PARSE_ARGS,
+    FAIL_IMG_NOT_FOUND,
+    FAIL_UNSPECIFIED,
+
+    // Use this error code in cases where the failure is in something other than tfsfmt,
+    // for example if mmap failed on an existing file.
+    FAIL_GENERIC,
+} Failure;
+
+
+
+// @TODO: Make a shared header of all useful macros.
+#define ARRAY_LEN(arr) (sizeof((arr)) / sizeof((arr)[0]))
+
 #define PACKED __attribute__((packed))
 
 typedef struct PACKED {
