@@ -70,7 +70,7 @@ uint16_t find_or_create_tag(FS_Metadata *fs_meta, Tag_Metadata *tag_meta, char *
     return 0;
 }
 
-void link_tag_to_file(
+bool link_tag_to_file(
     FS_Metadata *fs_meta,
     Tag_File_Entry *tag_file,
     uint16_t tag_id, uint16_t file_id
@@ -80,7 +80,7 @@ void link_tag_to_file(
     // If the file and tag are already linked, then nothing to do.
     for (int i = 0; i < tag_file_entry_count; i++) {
         if (tag_file[i].tag_id == tag_id && tag_file[i].file_id == file_id) {
-            return;
+            return true;
         }
     }
 
@@ -89,11 +89,11 @@ void link_tag_to_file(
         if (tag_file[i].tag_id == 0) {
             tag_file[i].tag_id = tag_id;
             tag_file[i].file_id = file_id;
-            return;
+            return true;
         }
     }
 
-    // @TODO: What if the tag file section is full?
+    return false;
 }
 
 
@@ -335,7 +335,9 @@ void write_files(int argc, char **argv) {
         for (int i = 0; i < tags_count; i++) {
             uint16_t tag_id = find_or_create_tag(fs_meta, tag_meta, tags[i]);
             if (tag_id > 0) {
-                link_tag_to_file(fs_meta, tag_file, tag_id, file_id);
+                if (!link_tag_to_file(fs_meta, tag_file, tag_id, file_id)) {
+                    fprintf(stderr, "WARNING: Could not link tag %s to file %s; tag file map is full.\n", tags[i], dst_file_name);
+                }
             }
             else {
                 fprintf(stderr, "WARNING: Could not link tag %s to file %s; the tag needed to be created, but the tag metadata section is full.\n", tags[i], dst_file_name);

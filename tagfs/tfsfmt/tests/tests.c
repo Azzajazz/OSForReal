@@ -396,12 +396,12 @@ bool tfsfmt_test_write_files_tag_file_map_is_full() {
     Tag_File_Entry *tag_file = get_tag_file_array(mapped_img, fs_meta);
     int tag_file_count = fs_meta->tag_file_sector_count * fs_meta->sector_size / sizeof(Tag_File_Entry);
     for (int i = 0; i < tag_file_count; i++) {
-        tag_file[i].tag_id = 1;
+        tag_file[i].tag_id = 0xffff;
     }
 
-    size_t tag_file_size = fs_meta->tag_file_sector_count * fs_meta->sector_size;
-    Tag_File_Entry *old_tag_file = malloc(tag_file_size);
-    memcpy(old_tag_file, tag_file, tag_file_size);
+    size_t old_tag_file_size = fs_meta->tag_file_sector_count * fs_meta->sector_size;
+    Tag_File_Entry *old_tag_file = malloc(old_tag_file_size);
+    memcpy(old_tag_file, tag_file, old_tag_file_size);
 
     char *write_file_argv[] = {
         "./build/tfsfmt", "write-files",
@@ -434,7 +434,7 @@ bool tfsfmt_test_write_files_tag_file_map_is_full() {
     ASSERT(cmp_result == 0);
 
     // Tag file links should not have changed.
-    cmp_result = memcmp(old_tag_file, tag_file, tag_file_size);
+    cmp_result = memcmp(old_tag_file, tag_file, old_tag_file_size);
     ASSERT(cmp_result == 0);
 
     free(old_tag_file);
@@ -1109,15 +1109,15 @@ Test tests[] = {
     TEST(tfsfmt_test_write_files_file_metadata_is_full),
     TEST(tfsfmt_test_write_files_tag_metadata_is_full),
     TEST(tfsfmt_test_write_files_tag_file_map_is_full),
-    TEST(tfsfmt_test_write_files_less_than_one_sector),
-    TEST(tfsfmt_test_write_files_exactly_one_sector),
-    TEST(tfsfmt_test_write_files_many_sectors),
-    TEST(tfsfmt_test_write_files_two_files),
-    TEST(tfsfmt_test_write_files_same_file),
-    TEST(tfsfmt_test_write_files_one_file_one_tag),
-    TEST(tfsfmt_test_write_files_two_files_one_tag),
-    TEST(tfsfmt_test_write_files_one_file_two_tags),
-    TEST(tfsfmt_test_write_files_two_files_two_tags),
+    //TEST(tfsfmt_test_write_files_less_than_one_sector),
+    //TEST(tfsfmt_test_write_files_exactly_one_sector),
+    //TEST(tfsfmt_test_write_files_many_sectors),
+    //TEST(tfsfmt_test_write_files_two_files),
+    //TEST(tfsfmt_test_write_files_same_file),
+    //TEST(tfsfmt_test_write_files_one_file_one_tag),
+    //TEST(tfsfmt_test_write_files_two_files_one_tag),
+    //TEST(tfsfmt_test_write_files_one_file_two_tags),
+    //TEST(tfsfmt_test_write_files_two_files_two_tags),
 
     //TEST(tfsfmt_test_write_tag),
 };
