@@ -94,10 +94,10 @@ bool tfsfmt_test_format_with_default_args() {
     ASSERT(fs_meta->fat_sector_count == 2);
 
     File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
-    ASSERT(file_meta->first_data_sector == 0);
+    ASSERT(file_meta->name[0] == '\0');
 
     Tag_Metadata *tag_meta = get_tag_metadata(mapped_img, fs_meta);
-    ASSERT(tag_meta->first_data_sector == 0);
+    ASSERT(tag_meta->name[0] == '\0');
 
     Tag_File_Entry *tag_file = get_tag_file_array(mapped_img, fs_meta);
     ASSERT(tag_file->tag_id == 0);
@@ -141,10 +141,10 @@ bool tfsfmt_test_format_with_custom_args() {
     ASSERT(fs_meta->fat_sector_count == 3);
 
     File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
-    ASSERT(file_meta->first_data_sector == 0);
+    ASSERT(file_meta->name[0] == '\0');
 
     Tag_Metadata *tag_meta = get_tag_metadata(mapped_img, fs_meta);
-    ASSERT(tag_meta->first_data_sector == 0);
+    ASSERT(tag_meta->name[0] == '\0');
 
     Tag_File_Entry *tag_file = get_tag_file_array(mapped_img, fs_meta);
     ASSERT(tag_file->tag_id == 0);
@@ -207,7 +207,7 @@ bool tfsfmt_test_write_files_tag_names_and_file_names_too_long() {
     ASSERT(fat[0] == 0);
 
     Tag_Metadata *tag_meta = get_tag_metadata(mapped_img, fs_meta);
-    ASSERT(tag_meta->first_data_sector == 0);
+    ASSERT(tag_meta->name[0] == '\0');
     
     Tag_File_Entry *tag_file = get_tag_file_array(mapped_img, fs_meta);
     ASSERT(tag_file->tag_id == 0);
@@ -251,7 +251,7 @@ bool tfsfmt_test_write_files_not_enough_data_space() {
     // There should be exactly one sector of data from many_sectors.txt and the size in the file
     // metadata section should also reflect this.
     File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
-    ASSERT(file_meta->first_data_sector == fat_entry_count);
+    ASSERT(file_meta->first_data_sector == fat_entry_count - 1);
     ASSERT(file_meta->size == fs_meta->sector_size);
     int cmp_result = strcmp(file_meta->name, dst_file);
     ASSERT(cmp_result == 0);
@@ -344,7 +344,7 @@ bool tfsfmt_test_write_files_file_metadata_is_full() {
     File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
     int file_meta_count = fs_meta->file_meta_sector_count * fs_meta->sector_size / sizeof(File_Metadata);
     for (int i = 0; i < file_meta_count; i++) {
-        file_meta[i].first_data_sector = 1;
+        file_meta[i].name[0] = 'a';
     }
 
     uint8_t *old_img = malloc(image_size);
@@ -414,7 +414,7 @@ bool tfsfmt_test_write_files_tag_file_map_is_full() {
     msync(mapped_img, image_size, MS_SYNC);
 
     File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
-    ASSERT(file_meta->first_data_sector == 1);
+    ASSERT(file_meta->first_data_sector == 0);
     ASSERT(file_meta->size == src_size);
     int cmp_result = strcmp(file_meta->name, dst_file);
     ASSERT(cmp_result == 0);
@@ -429,7 +429,6 @@ bool tfsfmt_test_write_files_tag_file_map_is_full() {
 
     // The tag should be created.
     Tag_Metadata *tag_meta = get_tag_metadata(mapped_img, fs_meta);
-    ASSERT(tag_meta->first_data_sector == 1);
     cmp_result = strcmp(tag_meta->name, tag_name);
     ASSERT(cmp_result == 0);
 
@@ -467,7 +466,7 @@ bool tfsfmt_test_write_files_tag_metadata_is_full() {
     Tag_Metadata *tag_meta = get_tag_metadata(mapped_img, fs_meta);
     int tag_meta_count = fs_meta->tag_meta_sector_count * fs_meta->sector_size / sizeof(Tag_Metadata);
     for (int i = 0; i < tag_meta_count; i++) {
-        tag_meta[i].first_data_sector = 1;
+        tag_meta[i].name[0] = 'a';
     }
 
     char *write_file_argv[] = {
@@ -481,7 +480,7 @@ bool tfsfmt_test_write_files_tag_metadata_is_full() {
     msync(mapped_img, image_size, MS_SYNC);
 
     File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
-    ASSERT(file_meta->first_data_sector == 1);
+    ASSERT(file_meta->first_data_sector == 0);
     ASSERT(file_meta->size == src_size);
     int cmp_result = strcmp(file_meta->name, dst_file);
     ASSERT(cmp_result == 0);
@@ -527,7 +526,7 @@ bool tfsfmt_test_write_files_no_colon_filespec() {
     FS_Metadata *fs_meta = (FS_Metadata*)mapped_img;
 
     File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
-    ASSERT(file_meta->first_data_sector == 1);
+    ASSERT(file_meta->first_data_sector == 0);
     ASSERT(file_meta->size == src_size);
     int cmp_result = strcmp(file_meta->name, dst_file);
     ASSERT(cmp_result == 0);
@@ -569,7 +568,7 @@ bool tfsfmt_test_write_files_less_than_one_sector() {
     FS_Metadata *fs_meta = (FS_Metadata*)mapped_img;
 
     File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
-    ASSERT(file_meta->first_data_sector == 1);
+    ASSERT(file_meta->first_data_sector == 0);
     ASSERT(file_meta->size == src_size);
     int cmp_result = strcmp(file_meta->name, dst_file);
     ASSERT(cmp_result == 0);
@@ -611,7 +610,7 @@ bool tfsfmt_test_write_files_exactly_one_sector() {
     FS_Metadata *fs_meta = (FS_Metadata*)mapped_img;
 
     File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
-    ASSERT(file_meta->first_data_sector == 1);
+    ASSERT(file_meta->first_data_sector == 0);
     ASSERT(file_meta->size == src_size);
     int cmp_result = strcmp(file_meta->name, dst_file);
     ASSERT(cmp_result == 0);
@@ -653,7 +652,7 @@ bool tfsfmt_test_write_files_many_sectors() {
     FS_Metadata *fs_meta = (FS_Metadata*)mapped_img;
 
     File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
-    ASSERT(file_meta->first_data_sector == 1);
+    ASSERT(file_meta->first_data_sector == 0);
     ASSERT(file_meta->size == src_size);
     int cmp_result = strcmp(file_meta->name, dst_file);
     ASSERT(cmp_result == 0);
@@ -706,7 +705,7 @@ bool tfsfmt_test_write_files_two_files() {
 
     // Check data for many_sectors.txt
     File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
-    ASSERT(file_meta[0].first_data_sector == 1);
+    ASSERT(file_meta[0].first_data_sector == 0);
     ASSERT(file_meta[0].size == src_size_1);
     int cmp_result = strcmp(file_meta[0].name, dst_file_1);
     ASSERT(cmp_result == 0);
@@ -721,7 +720,7 @@ bool tfsfmt_test_write_files_two_files() {
     ASSERT(cmp_result == 0);
 
     // Check data for part_sector.txt
-    ASSERT(file_meta[1].first_data_sector == 4);
+    ASSERT(file_meta[1].first_data_sector == 3);
     ASSERT(file_meta[1].size == src_size_2);
     cmp_result = strcmp(file_meta[1].name, dst_file_2);
     ASSERT(cmp_result == 0);
@@ -765,7 +764,7 @@ bool tfsfmt_test_write_files_same_file() {
 
     // Check data for first part_sector.txt
     File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
-    ASSERT(file_meta[0].first_data_sector == 1);
+    ASSERT(file_meta[0].first_data_sector == 0);
     ASSERT(file_meta[0].size == src_size);
     int cmp_result = strcmp(file_meta[0].name, dst_file);
     ASSERT(cmp_result == 0);
@@ -778,7 +777,7 @@ bool tfsfmt_test_write_files_same_file() {
     ASSERT(cmp_result == 0);
 
     // Check data for second part_sector.txt
-    ASSERT(file_meta[1].first_data_sector == 2);
+    ASSERT(file_meta[1].first_data_sector == 1);
     ASSERT(file_meta[1].size == src_size);
     cmp_result = strcmp(file_meta[1].name, dst_file);
     ASSERT(cmp_result == 0);
@@ -823,7 +822,7 @@ bool tfsfmt_test_write_files_one_file_one_tag() {
     FS_Metadata *fs_meta = (FS_Metadata*)mapped_img;
 
     File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
-    ASSERT(file_meta->first_data_sector == 1);
+    ASSERT(file_meta->first_data_sector == 0);
     ASSERT(file_meta->size == src_size);
     int cmp_result = strcmp(file_meta->name, dst_file);
     ASSERT(cmp_result == 0);
@@ -837,7 +836,6 @@ bool tfsfmt_test_write_files_one_file_one_tag() {
     ASSERT(cmp_result == 0);
 
     Tag_Metadata *tag_meta = get_tag_metadata(mapped_img, fs_meta);
-    ASSERT(tag_meta->first_data_sector == 1); // @TODO: May not need this.
     cmp_result = strcmp(tag_meta->name, tag_name);
     ASSERT(cmp_result == 0);
 
@@ -891,7 +889,7 @@ bool tfsfmt_test_write_files_two_files_one_tag() {
 
     // Check data for many_sectors.txt
     File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
-    ASSERT(file_meta[0].first_data_sector == 1);
+    ASSERT(file_meta[0].first_data_sector == 0);
     ASSERT(file_meta[0].size == src_size_1);
     int cmp_result = strcmp(file_meta[0].name, dst_file_1);
     ASSERT(cmp_result == 0);
@@ -906,7 +904,7 @@ bool tfsfmt_test_write_files_two_files_one_tag() {
     ASSERT(cmp_result == 0);
 
     // Check data for part_sector.txt
-    ASSERT(file_meta[1].first_data_sector == 4);
+    ASSERT(file_meta[1].first_data_sector == 3);
     ASSERT(file_meta[1].size == src_size_2);
     cmp_result = strcmp(file_meta[1].name, dst_file_2);
     ASSERT(cmp_result == 0);
@@ -918,7 +916,6 @@ bool tfsfmt_test_write_files_two_files_one_tag() {
     ASSERT(cmp_result == 0);
 
     Tag_Metadata *tag_meta = get_tag_metadata(mapped_img, fs_meta);
-    ASSERT(tag_meta->first_data_sector == 1); // @TODO: May not need this.
     cmp_result = strcmp(tag_meta->name, tag_name);
     ASSERT(cmp_result == 0);
 
@@ -969,7 +966,7 @@ bool tfsfmt_test_write_files_one_file_two_tags() {
     FS_Metadata *fs_meta = (FS_Metadata*)mapped_img;
 
     File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
-    ASSERT(file_meta->first_data_sector == 1);
+    ASSERT(file_meta->first_data_sector == 0);
     ASSERT(file_meta->size == src_size);
     int cmp_result = strcmp(file_meta->name, dst_file);
     ASSERT(cmp_result == 0);
@@ -983,10 +980,8 @@ bool tfsfmt_test_write_files_one_file_two_tags() {
     ASSERT(cmp_result == 0);
 
     Tag_Metadata *tag_meta = get_tag_metadata(mapped_img, fs_meta);
-    ASSERT(tag_meta[0].first_data_sector == 1); // @TODO: May not need this.
     cmp_result = strcmp(tag_meta[0].name, tag_name_1);
     ASSERT(cmp_result == 0);
-    ASSERT(tag_meta[1].first_data_sector == 1); // @TODO: May not need this.
     cmp_result = strcmp(tag_meta[1].name, tag_name_2);
     ASSERT(cmp_result == 0);
 
@@ -1044,7 +1039,7 @@ bool tfsfmt_test_write_files_two_files_two_tags() {
 
     // Check data for many_sectors.txt
     File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
-    ASSERT(file_meta[0].first_data_sector == 1);
+    ASSERT(file_meta[0].first_data_sector == 0);
     ASSERT(file_meta[0].size == src_size_1);
     int cmp_result = strcmp(file_meta[0].name, dst_file_1);
     ASSERT(cmp_result == 0);
@@ -1059,7 +1054,7 @@ bool tfsfmt_test_write_files_two_files_two_tags() {
     ASSERT(cmp_result == 0);
 
     // Check data for part_sector.txt
-    ASSERT(file_meta[1].first_data_sector == 4);
+    ASSERT(file_meta[1].first_data_sector == 3);
     ASSERT(file_meta[1].size == src_size_2);
     cmp_result = strcmp(file_meta[1].name, dst_file_2);
     ASSERT(cmp_result == 0);
@@ -1071,10 +1066,8 @@ bool tfsfmt_test_write_files_two_files_two_tags() {
     ASSERT(cmp_result == 0);
 
     Tag_Metadata *tag_meta = get_tag_metadata(mapped_img, fs_meta);
-    ASSERT(tag_meta[0].first_data_sector == 1); // @TODO: May not need this.
     cmp_result = strcmp(tag_meta[0].name, tag_name_1);
     ASSERT(cmp_result == 0);
-    ASSERT(tag_meta[1].first_data_sector == 1); // @TODO: May not need this.
     cmp_result = strcmp(tag_meta[1].name, tag_name_2);
     ASSERT(cmp_result == 0);
 
@@ -1120,7 +1113,6 @@ bool tfsfmt_test_write_tag() {
     FS_Metadata *fs_meta = (FS_Metadata*)mapped_img;
 
     Tag_Metadata *tag_meta = get_tag_metadata(mapped_img, fs_meta);
-    ASSERT(tag_meta->first_data_sector == 1);
     int cmp_result = strcmp(tag_meta->name, tag_name);
     ASSERT(cmp_result == 0);
 

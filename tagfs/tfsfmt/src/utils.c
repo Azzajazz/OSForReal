@@ -39,8 +39,7 @@ typedef struct PACKED {
 } File_Metadata;
 
 typedef struct PACKED {
-    uint32_t first_data_sector;
-    char name[28];
+    char name[32];
 } Tag_Metadata;
 
 typedef struct PACKED {

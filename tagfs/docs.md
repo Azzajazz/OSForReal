@@ -56,7 +56,7 @@ The file metadata block contains file metadata entries of the following form:
 |10    |22  |`name`             |The name of the file, including a trailing null byte.           |
 ***TODO: Probably need some other stuff here.***
 
-The file id is defined to be the index of its file metadata entry in the file metadata block, plus 1. If `first_data_sector == 0`, then this file metadata entry is empty.
+The file id is defined to be the index of its file metadata entry in the file metadata block, plus 1. If `name` starts with a null byte, then the file metadata entry is empty. As a consequence, files cannot have an empty name.
 
 **Size:** `32 * # of entries` bytes
 **Byte Offset:** `sector size`
@@ -66,10 +66,9 @@ The file id is defined to be the index of its file metadata entry in the file me
 The tag metadata block contains tag metadata entries of the following form:
 |Offset|Size|Name               |Description                                                     |
 |:-----|:---|:------------------|:---------------------------------------------------------------|
-|2     |4   |`first_data_sector`|Offset of the first segment of data in the data section, plus 1.|
-|6     |26  |`name`             |The name of the tag.                                            |
+|0     |32  |`name`             |The name of the tag.                                            |
 
-The tag id is defined to be the index of its tag metadata entry in the tag metadata block, plus 1. If `first_data_sector == 0`, then this tag metadata entry is empty.
+The tag id is defined to be the index of its tag metadata entry in the tag metadata block, plus 1. If `name` starts with a null byte, then the tag metadata entry is empty. As a consequence, tags cannot have an empty name.
 ***TODO: Probably need some other stuff here.***
 
 **Size:** `32 * # of entries` bytes

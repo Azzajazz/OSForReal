@@ -59,10 +59,8 @@ uint16_t find_or_create_tag(FS_Metadata *fs_meta, Tag_Metadata *tag_meta, char *
 
     // Otherwise, create the tag and return the index.
     for (uint16_t index = 0; index < tag_meta_entry_count; index++) {
-        if (tag_meta[index].first_data_sector == 0) {
+        if (tag_meta[index].name[0] == '\0') {
             strcpy(tag_meta[index].name, name);
-            // @TODO: Do we need a data sector?
-            tag_meta[index].first_data_sector = 1;
             return index + 1;
         }
     }
@@ -287,7 +285,7 @@ void write_files(int argc, char **argv) {
         unsigned int file_meta_count = fs_meta->file_meta_sector_count * fs_meta->sector_size / sizeof(File_Metadata);
         uint16_t file_id = 0;
         for (; file_id < file_meta_count; file_id++) {
-            if (file_meta[file_id].first_data_sector == 0) {
+            if (file_meta[file_id].name[0] == '\0') {
                 break;
             }
         }
@@ -311,7 +309,7 @@ void write_files(int argc, char **argv) {
             continue;
         }
 
-        file_meta[file_id - 1].first_data_sector = fat_index + 1;
+        file_meta[file_id - 1].first_data_sector = fat_index;
 
         size_t bytes_copied = 0;
         for (;;) {
@@ -415,12 +413,9 @@ void write_tag(int argc, char **argv) {
 
     // Find the first empty tag metadata entry
     Tag_Metadata *tag_meta = get_tag_metadata(mapped_img, &fs_meta);
-    while (tag_meta->first_data_sector != 0) {
+    while (tag_meta->name[0] == '\0') {
         tag_meta++;
     }
-
-    // @TODO: Do we really need a data offset?
-    tag_meta->first_data_sector = 1;
 
     // Set the name.
     if (strlen(options.tag_name) >= 28) {
