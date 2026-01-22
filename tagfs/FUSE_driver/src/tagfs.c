@@ -9,21 +9,29 @@
 #include <stdint.h>
 #include <sys/mman.h>
 
-#include "utils.c"
+#include "../../../common.c"
+#include "../../utils.c"
 
-uint8_t *mapped_img = NULL;
+/**
+ * NOTE: FUSE doesn't play well with duplicate file names, so this driver enforces that
+ * file names be distinct.
+ */
 
-int tagfs_getattr(const char *path, struct stat *st, struct fuse_file_info *fi) {
+static uint8_t *mapped_img = NULL;
+
+static int tagfs_getattr(const char *path, struct stat *st, struct fuse_file_info *fi) {
     FS_Metadata *fs_meta = (FS_Metadata*)mapped_img;
     File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
     int file_meta_count = fs_meta->file_meta_sector_count * fs_meta->sector_size / sizeof(File_Metadata);
 
+    st->st_nlink = 0;
+    st->st_blksize = 512;
     if (strcmp(path, "/") == 0) {
         st->st_mode = S_IFDIR | S_IRWXU | S_IRWXG | S_IRWXO;
-        st->st_nlink = 0;
         for (int i = 0; i < file_meta_count; ++i) {
             if (file_meta[i].name[0] != '\0') {
                 st->st_size += file_meta[i].size;
+                st->st_blocks += CEIL_DIV(file_meta[i].size, st->st_blksize);
             }
         }
 
@@ -31,10 +39,11 @@ int tagfs_getattr(const char *path, struct stat *st, struct fuse_file_info *fi) 
     }
     else {
         st->st_mode = S_IFREG | S_IRWXU | S_IRWXG | S_IRWXO;
-        st->st_nlink = 0;
         for (int i = 0; i < file_meta_count; ++i) {
             if (strcmp(file_meta[i].name, path + 1) == 0) {
-                st->st_size += file_meta[i].size;
+                st->st_ino = i + 1;
+                st->st_size = file_meta[i].size;
+                st->st_blocks = CEIL_DIV(st->st_size, st->st_blksize);
                 return 0;
             }
         }
@@ -43,7 +52,7 @@ int tagfs_getattr(const char *path, struct stat *st, struct fuse_file_info *fi) 
     }
 }
 
-int tagfs_readdir(
+static int tagfs_readdir(
     const char *path,
     void *buf,
     fuse_fill_dir_t filler,
@@ -62,9 +71,11 @@ int tagfs_readdir(
         for (int i = 0; i < file_meta_count; ++i) {
             if (file_meta[i].name[0] != '\0') {
                 struct stat file_stat = {
+                    .st_ino = i + 1,
                     .st_size = file_meta[i].size,
                     .st_mode = S_IFREG | S_IRWXU | S_IRWXG | S_IRWXO,
                 };
+
                 filler(buf, file_meta[i].name, &file_stat, 0, 0);
             }
         }
@@ -86,12 +97,10 @@ static int tagfs_read(
     int file_meta_count = fs_meta->file_meta_sector_count * fs_meta->sector_size / sizeof(File_Metadata);
 
     // Find the file id.
-    uint16_t file_id = 0;
     File_Metadata *this_file_meta = NULL;
-    for (; file_id < file_meta_count; file_id++) {
-        if (strcmp(path, file_meta[file_id].name) == 0) {
-            this_file_meta = &file_meta[file_id];
-            file_id++;
+    for (int i = 0; i < file_meta_count; i++) {
+        if (strcmp(path, file_meta[i].name) == 0) {
+            this_file_meta = &file_meta[i];
             break;
         }
     }
@@ -150,10 +159,44 @@ static int tagfs_read(
     }
 }
 
+static int tagfs_mknod(const char *path, mode_t mode, dev_t rdev) {
+    path = path + 1; // Strip the leading '/'.
+    if S_ISREG(mode) {
+        if (strlen(path) >= 24) {
+            return -ENAMETOOLONG;
+        }
+
+        FS_Metadata *fs_meta = (FS_Metadata*)mapped_img;
+        File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
+        int file_meta_count = fs_meta->file_meta_sector_count * fs_meta->sector_size / sizeof(File_Metadata);
+        File_Metadata *this_file_meta = NULL;
+        for (int i = 0; i < file_meta_count; i++) {
+            if (file_meta[i].name[0] == '\0') {
+                this_file_meta = &file_meta[i];
+                break;
+            }
+        }
+
+        if (this_file_meta == NULL) {
+            return -ENOSPC;
+        }
+
+        this_file_meta->first_data_sector = 0;
+        this_file_meta->size = 0;
+        strcpy(this_file_meta->name, path);
+    }
+    else {
+        return -38; // Function not implemented.
+    }
+
+    return 0;
+}
+
 static struct fuse_operations myfs_ops = {
     .getattr = tagfs_getattr,
     .readdir = tagfs_readdir,
     .read = tagfs_read,
+    .mknod = tagfs_mknod,
 };
 
 int main(int argc, char **argv)

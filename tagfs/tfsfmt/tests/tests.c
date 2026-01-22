@@ -6,7 +6,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "../src/utils.c"
+#include "../../utils.c"
 
 char *image_name = "test_tmp.img";
 

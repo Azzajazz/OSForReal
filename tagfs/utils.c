@@ -1,3 +1,5 @@
+#include "../common.c"
+
 //
 // In case of unrecoverable failure, call exit() with one of these error codes. For tests that
 // expect tfsfmt to fail, use the exit code to determine how it failed.
@@ -11,13 +13,6 @@ typedef enum {
     // for example if mmap failed on an existing file.
     FAIL_GENERIC,
 } Failure;
-
-
-
-// @TODO: Make a shared header of all useful macros.
-#define ARRAY_LEN(arr) (sizeof((arr)) / sizeof((arr)[0]))
-
-#define PACKED __attribute__((packed))
 
 typedef struct PACKED {
     uint32_t jump;

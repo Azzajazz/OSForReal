@@ -51,9 +51,9 @@ The boot sector is a single sector beginning with an FS metadata structure. The 
 The file metadata block contains file metadata entries of the following form:
 |Offset|Size|Name               |Description                                                     |
 |:-----|:---|:------------------|:---------------------------------------------------------------|
-|2     |4   |`first_data_sector`|Offset of the first segment of data in the data section, plus 1.|
-|6     |4   |`size`             |Size of the file in bytes.                                      |
-|10    |22  |`name`             |The name of the file, including a trailing null byte.           |
+|0     |4   |`first_data_sector`|Offset of the first segment of data in the data section, plus 1.|
+|4     |4   |`size`             |Size of the file in bytes.                                      |
+|8     |24  |`name`             |The name of the file, including a trailing null byte.           |
 ***TODO: Probably need some other stuff here.***
 
 The file id is defined to be the index of its file metadata entry in the file metadata block, plus 1. If `name` starts with a null byte, then the file metadata entry is empty. As a consequence, files cannot have an empty name.

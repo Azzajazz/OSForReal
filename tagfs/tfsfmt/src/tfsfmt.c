@@ -11,7 +11,7 @@
 #include <unistd.h>
 
 #include "flags.c"
-#include "utils.c"
+#include "../../utils.c"
 
 
 void print_usage(char *program_name) {
