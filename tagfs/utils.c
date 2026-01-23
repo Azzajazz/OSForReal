@@ -102,3 +102,7 @@ bool file_metadata_entry_is_free(File_Metadata *fs_meta) {
 bool tag_metadata_entry_is_free(Tag_Metadata *tag_meta) {
     return tag_meta->name[0] == '\0';
 }
+
+bool tag_file_entry_is_free(Tag_File_Entry *tag_file) {
+    return tag_file->tag_id == 0;   
+}
