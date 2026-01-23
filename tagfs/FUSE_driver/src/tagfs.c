@@ -171,7 +171,7 @@ static int tagfs_mknod(const char *path, mode_t mode, dev_t rdev) {
         int file_meta_count = fs_meta->file_meta_sector_count * fs_meta->sector_size / sizeof(File_Metadata);
         File_Metadata *this_file_meta = NULL;
         for (int i = 0; i < file_meta_count; i++) {
-            if (file_meta[i].name[0] == '\0') {
+            if (file_metadata_entry_is_free(&file_meta[i])) {
                 this_file_meta = &file_meta[i];
                 break;
             }

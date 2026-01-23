@@ -94,10 +94,10 @@ bool tfsfmt_test_format_with_default_args() {
     ASSERT(fs_meta->fat_sector_count == 2);
 
     File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
-    ASSERT(file_meta->name[0] == '\0');
+    ASSERT(file_metadata_entry_is_free(file_meta));
 
     Tag_Metadata *tag_meta = get_tag_metadata(mapped_img, fs_meta);
-    ASSERT(tag_meta->name[0] == '\0');
+    ASSERT(tag_metadata_entry_is_free(tag_meta));
 
     Tag_File_Entry *tag_file = get_tag_file_array(mapped_img, fs_meta);
     ASSERT(tag_file->tag_id == 0);
@@ -141,10 +141,10 @@ bool tfsfmt_test_format_with_custom_args() {
     ASSERT(fs_meta->fat_sector_count == 3);
 
     File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
-    ASSERT(file_meta->name[0] == '\0');
+    ASSERT(file_metadata_entry_is_free(file_meta));
 
     Tag_Metadata *tag_meta = get_tag_metadata(mapped_img, fs_meta);
-    ASSERT(tag_meta->name[0] == '\0');
+    ASSERT(tag_metadata_entry_is_free(tag_meta));
 
     Tag_File_Entry *tag_file = get_tag_file_array(mapped_img, fs_meta);
     ASSERT(tag_file->tag_id == 0);
@@ -207,7 +207,7 @@ bool tfsfmt_test_write_files_tag_names_and_file_names_too_long() {
     ASSERT(fat[0] == 0);
 
     Tag_Metadata *tag_meta = get_tag_metadata(mapped_img, fs_meta);
-    ASSERT(tag_meta->name[0] == '\0');
+    ASSERT(tag_metadata_entry_is_free(tag_meta));
     
     Tag_File_Entry *tag_file = get_tag_file_array(mapped_img, fs_meta);
     ASSERT(tag_file->tag_id == 0);

@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include "../common.c"
 
 //
@@ -92,4 +93,12 @@ uint8_t *get_data(uint8_t *base, FS_Metadata *fs_meta) {
             fs_meta->fat_sector_count
         ) * fs_meta->sector_size
     );
+}
+
+bool file_metadata_entry_is_free(File_Metadata *fs_meta) {
+    return fs_meta->name[0] == '\0';
+}
+
+bool tag_metadata_entry_is_free(Tag_Metadata *tag_meta) {
+    return tag_meta->name[0] == '\0';
 }

@@ -59,7 +59,7 @@ uint16_t find_or_create_tag(FS_Metadata *fs_meta, Tag_Metadata *tag_meta, char *
 
     // Otherwise, create the tag and return the index.
     for (uint16_t index = 0; index < tag_meta_entry_count; index++) {
-        if (tag_meta[index].name[0] == '\0') {
+        if (tag_metadata_entry_is_free(&tag_meta[index])) {
             strcpy(tag_meta[index].name, name);
             return index + 1;
         }
@@ -285,7 +285,7 @@ void write_files(int argc, char **argv) {
         unsigned int file_meta_count = fs_meta->file_meta_sector_count * fs_meta->sector_size / sizeof(File_Metadata);
         uint16_t file_id = 0;
         for (; file_id < file_meta_count; file_id++) {
-            if (file_meta[file_id].name[0] == '\0') {
+            if (file_metadata_entry_is_free(&file_meta[file_id])) {
                 break;
             }
         }
@@ -413,7 +413,7 @@ void write_tag(int argc, char **argv) {
 
     // Find the first empty tag metadata entry
     Tag_Metadata *tag_meta = get_tag_metadata(mapped_img, &fs_meta);
-    while (tag_meta->name[0] == '\0') {
+    while (tag_metadata_entry_is_free(tag_meta)) {
         tag_meta++;
     }
 
