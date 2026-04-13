@@ -96,18 +96,11 @@ static int tagfs_read(
     File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
     int file_meta_count = fs_meta->file_meta_sector_count * fs_meta->sector_size / sizeof(File_Metadata);
 
-    // Find the file id.
-    File_Metadata *this_file_meta = NULL;
-    for (int i = 0; i < file_meta_count; i++) {
-        if (strcmp(path, file_meta[i].name) == 0) {
-            this_file_meta = &file_meta[i];
-            break;
-        }
-    }
-
-    if (this_file_meta == NULL) {
+    uint16_t file_id = get_file_id_from_name(fs_meta, file_meta, path);
+    if (file_id == 0) {
         return -ENOENT;
     }
+    File_Metadata *this_file_meta = &file_meta[file_id - 1];
 
     if (offset >= this_file_meta->size) {
         return 0;
@@ -181,7 +174,7 @@ static int tagfs_mknod(const char *path, mode_t mode, dev_t rdev) {
             return -ENOSPC;
         }
 
-        this_file_meta->first_data_sector = 0;
+        this_file_meta->first_data_sector = 0xffff;
         this_file_meta->size = 0;
         strcpy(this_file_meta->name, path);
     }
@@ -192,11 +185,121 @@ static int tagfs_mknod(const char *path, mode_t mode, dev_t rdev) {
     return 0;
 }
 
+static int tagfs_write(
+    const char *path,
+    const char *buf,
+    size_t size,
+	off_t offset,
+    struct fuse_file_info *fi
+) {
+    path = path + 1; // Skip the '/' at the start.
+
+    FS_Metadata *fs_meta = (FS_Metadata*)mapped_img;
+    File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
+    int file_meta_count = fs_meta->file_meta_sector_count * fs_meta->sector_size / sizeof(File_Metadata);
+
+    uint16_t file_id = get_file_id_from_name(fs_meta, file_meta, path);
+    if (file_id == 0) {
+        return -ENOENT;
+    }
+    File_Metadata *this_file_meta = &file_meta[file_id - 1];
+
+    uint16_t *fat = get_fat(mapped_img, fs_meta);
+    uint8_t *data = get_data(mapped_img, fs_meta);
+
+    int fat_index;
+    if (this_file_meta->first_data_sector == 0xffff) {
+        fat_index = find_free_fat(fs_meta, fat);
+        if (fat_index == -1) {
+            return 0;
+        }
+        this_file_meta->first_data_sector = fat_index;
+    }
+    else {
+        fat_index = this_file_meta->first_data_sector;
+    }
+
+    int byte_skip_count = 0;
+    if (offset < this_file_meta->size) {
+        // Skip the required amount of sectors.
+        int sector_skip_count = offset / fs_meta->sector_size;
+        byte_skip_count = offset % fs_meta->sector_size;
+
+        // Skip the number of sectors specified by the offset.
+        uint16_t *fat = get_fat(mapped_img, fs_meta);
+        for (; sector_skip_count > 0; sector_skip_count--) {
+            if (fat[fat_index] == 0xffff) {
+                return -EBADFD;
+            }
+            fat_index = fat[fat_index];
+        }
+    }
+    else {
+        int sector_count = this_file_meta->size / fs_meta->sector_size;
+        byte_skip_count = this_file_meta->size % fs_meta->sector_size;
+
+        for (; sector_count > 0; sector_count--) {
+            if (fat[fat_index] == 0xffff) {
+                return -EBADFD;
+            }
+            fat_index = fat[fat_index];
+        }
+    }
+
+    if (size <= fs_meta->sector_size - byte_skip_count) {
+        // We're just writing to one sector.
+        memcpy(data + fs_meta->sector_size * fat_index + byte_skip_count, buf, size);
+        if (fat[fat_index] == 0) {
+            fat[fat_index] = 0xffff;
+        }
+
+        if (offset + size > this_file_meta->size) {
+            this_file_meta->size = offset + size;
+        }
+
+        return size;
+    }
+    else {
+        size_t buf_index = 0;
+
+        // We're writing multiple sectors. Write as much of the current sector as we can.
+        size_t first_sector_bytes = fs_meta->sector_size - byte_skip_count;
+        memcpy(data + fs_meta->sector_size * fat_index + byte_skip_count, buf, first_sector_bytes);
+        buf_index += first_sector_bytes;
+
+        // Now write the rest.
+        while (buf_index < size) {
+            // Find the first free FAT.
+            int fat_index = find_free_fat(fs_meta, fat);
+            if (fat_index == -1) {
+                return buf_index;
+            }
+
+            size_t bytes_to_write = fs_meta->sector_size;
+            if (size <= buf_index + fs_meta->sector_size) {
+                bytes_to_write = size - buf_index;
+            }
+
+            memcpy(data + fs_meta->sector_size * fat_index, buf + buf_index, bytes_to_write);
+            buf_index += bytes_to_write;
+        }
+
+        if (offset + buf_index > this_file_meta->size) {
+            this_file_meta->size = offset + buf_index;
+        }
+
+        return buf_index;
+    }
+
+    return 0; 
+}
+
 static struct fuse_operations myfs_ops = {
     .getattr = tagfs_getattr,
     .readdir = tagfs_readdir,
     .read = tagfs_read,
     .mknod = tagfs_mknod,
+    .write = tagfs_write,
 };
 
 int main(int argc, char **argv)
