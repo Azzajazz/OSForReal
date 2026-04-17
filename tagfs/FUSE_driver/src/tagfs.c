@@ -69,7 +69,7 @@ static int tagfs_readdir(
         File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
         int file_meta_count = fs_meta->file_meta_sector_count * fs_meta->sector_size / sizeof(File_Metadata);
         for (int i = 0; i < file_meta_count; ++i) {
-            if (file_meta[i].name[0] != '\0') {
+            if (!file_metadata_entry_is_free(&file_meta[i])) {
                 struct stat file_stat = {
                     .st_ino = i + 1,
                     .st_size = file_meta[i].size,
@@ -94,7 +94,7 @@ static int tagfs_read(
 
     FS_Metadata *fs_meta = (FS_Metadata*)mapped_img;
     File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
-    int file_meta_count = fs_meta->file_meta_sector_count * fs_meta->sector_size / sizeof(File_Metadata);
+    int file_meta_count = count_file_meta_entries(fs_meta);
 
     uint16_t file_id = get_file_id_from_name(fs_meta, file_meta, path);
     if (file_id == 0) {
@@ -196,7 +196,7 @@ static int tagfs_write(
 
     FS_Metadata *fs_meta = (FS_Metadata*)mapped_img;
     File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
-    int file_meta_count = fs_meta->file_meta_sector_count * fs_meta->sector_size / sizeof(File_Metadata);
+    int file_meta_count = count_file_meta_entries(fs_meta);
 
     uint16_t file_id = get_file_id_from_name(fs_meta, file_meta, path);
     if (file_id == 0) {
@@ -294,12 +294,48 @@ static int tagfs_write(
     return 0; 
 }
 
+static int tagfs_unlink(const char *name) {
+    name = name + 1; // Get rid of the leading '/'.
+
+    FS_Metadata *fs_meta = (FS_Metadata*)mapped_img;
+    File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
+
+    int file_id = get_file_id_from_name(fs_meta, file_meta, name);
+    if (file_id == -1) {
+        return -ENOENT;
+    }
+
+    File_Metadata *this_file_meta = &file_meta[file_id - 1];
+    this_file_meta->name[0] = '\0';
+
+    // Clear the FAT entries for this file.
+    if (this_file_meta->first_data_sector == 0xffff) {
+        // This file is empty. Don't do anything.
+        return 0;
+    }
+
+    uint16_t *fat = get_fat(mapped_img, fs_meta);
+    int fat_index = this_file_meta->first_data_sector;
+
+    for (;;) {
+        uint16_t old_fat_entry = fat[fat_index];
+        fat[fat_index] = 0;
+
+        if (old_fat_entry == 0xffff) {
+            break;
+        }
+        fat_index = fat[fat_index];
+    }
+    return 0;
+}
+
 static struct fuse_operations myfs_ops = {
     .getattr = tagfs_getattr,
     .readdir = tagfs_readdir,
     .read = tagfs_read,
     .mknod = tagfs_mknod,
     .write = tagfs_write,
+    .unlink = tagfs_unlink,
 };
 
 int main(int argc, char **argv)

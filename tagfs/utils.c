@@ -95,8 +95,23 @@ uint8_t *get_data(uint8_t *base, FS_Metadata *fs_meta) {
     );
 }
 
-bool file_metadata_entry_is_free(File_Metadata *fs_meta) {
-    return fs_meta->name[0] == '\0';
+int count_file_meta_entries(FS_Metadata *fs_meta) {
+    return fs_meta->file_meta_sector_count * fs_meta->sector_size / sizeof(File_Metadata);
+}
+
+uint16_t get_file_id_from_name(FS_Metadata *fs_meta, File_Metadata *file_meta, const char *name) {
+    int file_meta_count = count_file_meta_entries(fs_meta);
+    for (int i = 0; i < file_meta_count; i++) {
+        if (strcmp(name, file_meta[i].name) == 0) {
+            return i + 1;
+        }
+    }
+
+    return 0;
+}
+
+bool file_metadata_entry_is_free(File_Metadata *file_meta) {
+    return file_meta->name[0] == '\0';
 }
 
 bool tag_metadata_entry_is_free(Tag_Metadata *tag_meta) {
@@ -105,4 +120,17 @@ bool tag_metadata_entry_is_free(Tag_Metadata *tag_meta) {
 
 bool tag_file_entry_is_free(Tag_File_Entry *tag_file) {
     return tag_file->tag_id == 0;   
+}
+
+int find_free_fat(FS_Metadata *fs_meta, uint16_t *fat) {
+    int fat_count = fs_meta->fat_sector_count * fs_meta->sector_size / sizeof(uint16_t);
+
+    // Find the file id.
+    for (int i = 0; i < fat_count; i++) {
+        if (fat[i] == 0) {
+            return i;
+        }
+    }
+
+    return -1;
 }
