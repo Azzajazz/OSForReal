@@ -1125,6 +1125,20 @@ bool tfsfmt_test_write_tag() {
 
 
 // --------------------------------------------------
+// REGRESSION TESTS
+// --------------------------------------------------
+
+bool tfsfmt_test_write_files_missing_file_option() {
+    char *write_tag_argv[] = {"./build/tfsfmt", "write-files", image_name, "one_sector.txt", 0};
+    int exit_code = run_until_completion("./build/tfsfmt", write_tag_argv);
+    ASSERT(exit_code == FAIL_PARSE_ARGS);
+
+    return true;
+}
+
+
+
+// --------------------------------------------------
 // TEST ARRAY
 // --------------------------------------------------
 
@@ -1154,5 +1168,5 @@ Test tests[] = {
     TEST(tfsfmt_test_write_files_one_file_two_tags),
     TEST(tfsfmt_test_write_files_two_files_two_tags),
 
-    //TEST(tfsfmt_test_write_tag),
+    TEST(tfsfmt_test_write_files_missing_file_option),
 };
