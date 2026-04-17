@@ -169,7 +169,7 @@ bool flags_parse_flags(int argc, char **argv) {
         char *arg = shift_args(&argc, &argv);
         
         if (*arg != '-') {
-            if (positional_i > positional_index) {
+            if (positional_i >= positional_index) {
                 printf("Too many positional arguments provided (expected at most %d).\n\n", positional_index);
                 return false;
             }
