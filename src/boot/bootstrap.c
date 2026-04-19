@@ -74,16 +74,15 @@ void bootstrap(Multiboot_Info *boot_info) {
     bool page_bitmap_placed = false;
     
     // Calculate the size of the bitmap.
-    size_t memory_size = 0;
-
-    size_t bytes_traversed = 0;
     MMap_Segment *segment = (MMap_Segment*)boot_info->mmap_addr;
+    size_t bytes_traversed = segment->size + 4;
     while (bytes_traversed < boot_info->mmap_length) {
-        memory_size += (size_t)segment->length;
-
         bytes_traversed += segment->size + 4;
         segment = (MMap_Segment*)((uint8_t*)segment + segment->size + 4);
     }
+
+    uint64_t memory_size = segment->base_addr + segment->length;
+
     // 1 bit per page.
     size_t page_count = DIV_CEIL(memory_size, PAGE_SIZE);
     info.page_bitmap_size = DIV_CEIL(page_count, 8);

@@ -12,6 +12,8 @@ void assert(char *file, int line, const char *func, bool condition, char *messag
 // Linker symbols
 extern int __boot_start;
 extern int __boot_end;
+extern int __kernel_phys_start;
+extern int __kernel_phys_end;
 extern int __kernel_start;
 extern int __kernel_end;
 extern int __loaded_size;
@@ -59,6 +61,8 @@ void kernel_main(Multiboot_Info *boot_info, Bootstrap_Info info)
     fmt_print("\n");
     fmt_print("boot_start: %x\n", (uint32_t)&__boot_start);
     fmt_print("boot_end: %x\n", (uint32_t)&__boot_end);
+    fmt_print("kernel_phys_start: %x\n", (uint32_t)&__kernel_phys_start);
+    fmt_print("kernel_phys_end: %x\n", (uint32_t)&__kernel_phys_end);
     fmt_print("kernel_start: %x\n", (uint32_t)&__kernel_start);
     fmt_print("kernel_end: %x\n", (uint32_t)&__kernel_end);
     fmt_print("loaded_size: %d\n", (uint32_t)&__loaded_size);

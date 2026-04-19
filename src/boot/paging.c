@@ -67,6 +67,7 @@ bool paging_init(Bootstrap_Info info, Multiboot_Info *boot_info) {
     size_t kernel_phys_end = (size_t)&__kernel_phys_end;
     for (size_t i = 0; i < info.page_bitmap_size; i += 4) {
         uint32_t *page_mask = (uint32_t*)(info.page_bitmap + i);
+        *page_mask = 0;
 
         for (size_t j = 0; j < 32; j++) {
             // Check if this page contains any of the metadata in the boot info, or the kernel.
@@ -91,7 +92,7 @@ bool paging_init(Bootstrap_Info info, Multiboot_Info *boot_info) {
             // impossible.
             bool page_contains_kernel =
                 (boot_start <= page_base_addr && page_base_addr <= kernel_phys_end) ||
-                (boot_start < page_base_addr + PAGE_SIZE && page_base_addr + PAGE_SIZE <= kernel_phys_end + 1);
+                (boot_start < page_base_addr + PAGE_SIZE && page_base_addr + PAGE_SIZE < kernel_phys_end);
 
             // The page table bitmap has no guarantees whatsoever.
             bool page_contains_page_bitmap =

@@ -29,7 +29,7 @@ $TOOLCHAIN_PREFIX/$TARGET-gcc -T link.ld -Wl,-Map=$BUILD_DIR/output.map -o $BUIL
 
 # Build and link the tests.
 $TOOLCHAIN_PREFIX/$TARGET-gcc -c $SRC_DIR/boot/bootstrap.c -o $BUILD_DIR/bootstrap_test.o -DKERNEL_TEST $CFLAGS
-$TOOLCHAIN_PREFIX/$TARGET-gcc -c $TESTS_DIR/tests.c -o $BUILD_DIR/tests.o $CFLAGS
+$TOOLCHAIN_PREFIX/$TARGET-gcc -c $TESTS_DIR/runner.c -o $BUILD_DIR/tests.o $CFLAGS
 $TOOLCHAIN_PREFIX/$TARGET-gcc -T link.ld -Wl,-Map=$BUILD_DIR/output_tests.map -o $BUILD_DIR/os-for-real-test.bin $CFLAGS -nostdlib $BUILD_DIR/boot.o $BUILD_DIR/bootstrap_test.o $BUILD_DIR/tests.o -lgcc
 
 
