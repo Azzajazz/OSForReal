@@ -34,6 +34,7 @@ SECTIONS
     {
         __boot_start = .;
         *(.multiboot)
+        *(.stack)
 		*boot.o (.text)
         *boot.o (.data)
         *boot.o (.bss)

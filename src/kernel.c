@@ -67,6 +67,12 @@ void kernel_main(Multiboot_Info *boot_info, Bootstrap_Info info)
     fmt_print("kernel_end: %x\n", (uint32_t)&__kernel_end);
     fmt_print("loaded_size: %d\n", (uint32_t)&__loaded_size);
 
+    fmt_print("\n");
+    fmt_print("info.page_directory: %x\n", info.page_directory);
+    fmt_print("info.page_tables: %x\n", info.page_tables);
+    fmt_print("info.page_bitmap: %x\n", info.page_bitmap);
+    fmt_print("info.page_bitmap_size: %u\n", info.page_bitmap_size);
+
     // @FIXME: Assert that the multiboot magic number is correct.
     // ASSERT(boot_info->flags & (1 << 6), "Boot info mmap is not valid.");
 
