@@ -1,21 +1,30 @@
 // NOTE: This test has several hardcoded values, which may be invalid depending on the
 // QEMU configuration you are using. Tread with caution.
+
+extern int __boot_start;
+extern int __kernel_phys_end;
+
 bool kernel_test_boot_info_is_correct(Bootstrap_Info info) {
     // These constants can come from the Bootstrap_Info, but it seems self-referential
     // to test the values in the Bootstrap_Info using information from itself.
     // These constants are easy enough to verify ourselves, so it seems a good middle ground.
-    size_t page_directory = 0;
+    size_t page_directory = (size_t)info.page_directory;
     size_t page_directory_size = 4096;
 
-    size_t page_tables = 0x10E000;
+    size_t page_tables = (size_t)info.page_tables;
     size_t page_tables_size = 1024 * 1024 * 4;
 
-    size_t page_bitmap = 0x1000;
-    size_t page_bitmap_size = 131072;
+    size_t page_bitmap = (size_t)info.page_bitmap;
+    size_t page_bitmap_size = info.page_bitmap_size;
 
-    size_t code_start = 0x100000;
-    size_t code_size = 57344;
+    size_t code_start = (size_t)&__boot_start;
+    size_t code_size = (size_t)&__kernel_phys_end - code_start;
 
+    size_t unusable_ram_blocks[][2] = {
+        {0x9F000, 397312u},
+        {0x7FE0000, 4160880640u},
+    };
+    
     for (uint64_t addr = 0; addr < 0x100000000; addr += 4096) {
         int mask_offset = (addr / 4096) / 32;
         int bit_offset = (addr / 4096) % 32;
@@ -28,11 +37,21 @@ bool kernel_test_boot_info_is_correct(Bootstrap_Info info) {
         bool page_contains_page_bitmap = (addr >= page_bitmap && addr < page_bitmap + page_bitmap_size);
         bool page_contains_code = (addr >= code_start && addr < code_start + code_size);
 
-        if (page_contains_page_directory || page_contains_page_tables || page_contains_page_bitmap || page_contains_code) {
+        // @TODO: Entries marked as unavailable by multi-boot should be 1 as well...
+        bool unusable = false;
+        for (size_t i = 0; i < ARRAY_LEN(unusable_ram_blocks); i++) {
+            size_t base_addr = unusable_ram_blocks[i][0];
+            size_t length = unusable_ram_blocks[i][1];
+            if (addr >= base_addr && addr - base_addr < length) {
+                unusable = true;
+                break;
+            }
+        }
+
+        if (unusable || page_contains_page_directory || page_contains_page_tables || page_contains_page_bitmap || page_contains_code) {
             TEST_ASSERT((*entry & (1 << bit_offset)) != 0);
         }
         else {
-            // @TODO: Entries marked as unavailable by multi-boot should be 1 as well...
             TEST_ASSERT((*entry & (1 << bit_offset)) == 0);
         }
     }
