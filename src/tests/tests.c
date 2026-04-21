@@ -4,9 +4,6 @@ extern int __kernel_phys_end;
 // NOTE: This test has several hardcoded values, which may be invalid depending on the
 // QEMU configuration you are using. Tread with caution.
 bool kernel_test_boot_info_is_correct(Bootstrap_Info info) {
-    // These constants can come from the Bootstrap_Info, but it seems self-referential
-    // to test the values in the Bootstrap_Info using information from itself.
-    // These constants are easy enough to verify ourselves, so it seems a good middle ground.
     size_t page_directory = (size_t)info.page_directory;
     size_t page_directory_size = 4096;
 
@@ -19,6 +16,9 @@ bool kernel_test_boot_info_is_correct(Bootstrap_Info info) {
     size_t code_start = (size_t)&__boot_start;
     size_t code_size = (size_t)&__kernel_phys_end - code_start;
 
+    // These constants can come from the Multiboot_Info, but it's not so simple to preserve
+    // those values until here. These values shouldn't change much, so hardcoding them
+    // is fine for now.
     size_t unusable_ram_blocks[][2] = {
         {0x9F000, 397312u},
         {0x7FE0000, 4160880640u},
