@@ -1,9 +1,8 @@
-// NOTE: This test has several hardcoded values, which may be invalid depending on the
-// QEMU configuration you are using. Tread with caution.
-
 extern int __boot_start;
 extern int __kernel_phys_end;
 
+// NOTE: This test has several hardcoded values, which may be invalid depending on the
+// QEMU configuration you are using. Tread with caution.
 bool kernel_test_boot_info_is_correct(Bootstrap_Info info) {
     // These constants can come from the Bootstrap_Info, but it seems self-referential
     // to test the values in the Bootstrap_Info using information from itself.
@@ -37,7 +36,6 @@ bool kernel_test_boot_info_is_correct(Bootstrap_Info info) {
         bool page_contains_page_bitmap = (addr >= page_bitmap && addr < page_bitmap + page_bitmap_size);
         bool page_contains_code = (addr >= code_start && addr < code_start + code_size);
 
-        // @TODO: Entries marked as unavailable by multi-boot should be 1 as well...
         bool unusable = false;
         for (size_t i = 0; i < ARRAY_LEN(unusable_ram_blocks); i++) {
             size_t base_addr = unusable_ram_blocks[i][0];
