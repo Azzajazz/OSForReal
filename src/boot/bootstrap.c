@@ -21,7 +21,7 @@ extern int __loaded_size;
     void kernel_test(Bootstrap_Info info);
 #else
     // Kernel entry point.
-    void kernel_main(Multiboot_Info *boot_info, Bootstrap_Info info);
+    void kernel_main(Multiboot_Info boot_info, Bootstrap_Info info);
 #endif
 
 void place_page_metadata(
@@ -60,6 +60,17 @@ void place_page_metadata(
 }
 
 void bootstrap(Multiboot_Info *boot_info) {
+    // Copy the multi-boot info onto the stack so that they don't get overwritten by the paging
+    // initialisation code.
+    Multiboot_Info b_info = *boot_info;
+    // Copy the mmap information to a known location so that it doesn't get overwritten.
+    // @TODO: We should ensure that we're copying the mmap section to an available ram block.
+    uint8_t *new_mmap_addr = (uint8_t *)0x21000;
+    for (size_t i = 0; i < b_info.mmap_length; i++) {
+        new_mmap_addr[i] = ((uint8_t *)b_info.mmap_addr)[i];
+    }
+    b_info.mmap_addr = (uint32_t)new_mmap_addr;
+
     size_t boot_start = (size_t)&__boot_start;
     size_t kernel_phys_end = (size_t)&__kernel_phys_end;
     // Find places to put the page directory, page tables and free page frame bitmap.
@@ -74,9 +85,9 @@ void bootstrap(Multiboot_Info *boot_info) {
     bool page_bitmap_placed = false;
     
     // Calculate the size of the bitmap.
-    MMap_Segment *segment = (MMap_Segment*)boot_info->mmap_addr;
+    MMap_Segment *segment = (MMap_Segment *)b_info.mmap_addr;
     size_t bytes_traversed = segment->size + 4;
-    while (bytes_traversed < boot_info->mmap_length) {
+    while (bytes_traversed < b_info.mmap_length) {
         bytes_traversed += segment->size + 4;
         segment = (MMap_Segment*)((uint8_t*)segment + segment->size + 4);
     }
@@ -89,8 +100,8 @@ void bootstrap(Multiboot_Info *boot_info) {
 
     // Place things.
     bytes_traversed = 0;
-    segment = (MMap_Segment*)boot_info->mmap_addr;
-    while (bytes_traversed < boot_info->mmap_length) {
+    segment = (MMap_Segment *)b_info.mmap_addr;
+    while (bytes_traversed < b_info.mmap_length) {
         if (segment->type != 1) {
             bytes_traversed += segment->size + 4;
             segment = (MMap_Segment*)((uint8_t*)segment + segment->size + 4);
@@ -150,11 +161,11 @@ void bootstrap(Multiboot_Info *boot_info) {
     }
 
     // Initialize the paging.
-    paging_init(&info, boot_info);
+    paging_init(&info, b_info);
 
 #ifdef KERNEL_TEST
     kernel_test(info);
 #else
-    kernel_main(boot_info, info);
+    kernel_main(b_info, info);
 #endif
 }

@@ -35,7 +35,7 @@ void map_page_to_virtual(
 }
 
 // NOTE: page_table_area is guaranteed to have enough space to hold 1024 page tables contiguously.
-bool paging_init(Bootstrap_Info *info, Multiboot_Info *boot_info) {
+bool paging_init(Bootstrap_Info *info, Multiboot_Info boot_info) {
     // Set up the page directory.
     uint8_t page_directory_flags = PAGE_DIR_PRESENT | PAGE_DIR_RW | PAGE_DIR_ACCESS_ALL | PAGE_DIR_ACCESSED;
     for (int i = 0; i < 1024; i++) {
@@ -61,13 +61,16 @@ bool paging_init(Bootstrap_Info *info, Multiboot_Info *boot_info) {
 
     // Initialize the page bitmap.
     size_t page_base_addr = 0;
+    // Set all pages marked as used. Pages will be marked free later on.
+    for (size_t i = 0; i < info->page_bitmap_size; i++) {
+        ((uint8_t *)info->page_bitmap)[i] = 0xFF;
+    }
     // @TODO: This should be kernel_phys_start, but for now we have to reserve the bootstrap section so that
     // we don't overwrite the gdt and stack. Eventually, we will move the gdt and stack somewhere else.
     size_t boot_start = (size_t)&__boot_start;
     size_t kernel_phys_end = (size_t)&__kernel_phys_end;
     for (size_t i = 0; i < info->page_bitmap_size; i += 4) {
         uint32_t *page_mask = (uint32_t*)(info->page_bitmap + i);
-        *page_mask = 0;
 
         for (size_t j = 0; j < 32; j++) {
             // Check if this page contains any of the metadata in the boot info, or the kernel.
@@ -100,10 +103,7 @@ bool paging_init(Bootstrap_Info *info, Multiboot_Info *boot_info) {
                 ((size_t)info->page_bitmap < page_base_addr + PAGE_SIZE && page_base_addr + PAGE_SIZE <= (size_t)info->page_bitmap + info->page_bitmap_size) ||
                 ((size_t)info->page_bitmap > page_base_addr && page_base_addr + PAGE_SIZE > (size_t)info->page_bitmap + info->page_bitmap_size);
 
-            if (page_contains_page_directory || page_contains_page_tables || page_contains_kernel || page_contains_page_bitmap) {
-                *page_mask |= (1 << j);
-            }
-            else {
+            if (!page_contains_page_directory && !page_contains_page_tables && !page_contains_kernel && !page_contains_page_bitmap) {
                 *page_mask &= ~(1 << j);
             }
 
@@ -111,22 +111,22 @@ bool paging_init(Bootstrap_Info *info, Multiboot_Info *boot_info) {
         }
     }
 
-    // Any pages that aren't fully contained in a block of type 1 memory are marked as used.
-    MMap_Segment *segment = (MMap_Segment*)boot_info->mmap_addr;
+    // All pages fully contained in a block of type 1 memory are marked as free.
+    MMap_Segment *segment = (MMap_Segment*)boot_info.mmap_addr;
     size_t bytes_traversed = 0;
-    while (bytes_traversed < boot_info->mmap_length) {
-        if (segment->type != 1) {
+    while (bytes_traversed < boot_info.mmap_length) {
+        if (segment->type == 1) {
             uint64_t addr = segment->base_addr;
-            // Align backwards to PAGE_SIZE.
+            // Align forwards to PAGE_SIZE.
             if (addr % PAGE_SIZE != 0) {
-                addr -= addr % PAGE_SIZE;
+                addr += PAGE_SIZE - addr % PAGE_SIZE;
             }
             
-            for(; addr < segment->base_addr + segment->length; addr += PAGE_SIZE) {
+            for(; addr < segment->base_addr + segment->length - PAGE_SIZE; addr += PAGE_SIZE) {
                 int mask_offset = (addr / PAGE_SIZE) / 32;
                 int bit_offset = (addr / PAGE_SIZE) % 32; 
                 uint32_t* mask = (uint32_t*)info->page_bitmap + mask_offset;
-                *mask |= (1 << bit_offset);
+                *mask &= ~(1 << bit_offset);
             }
         }
 
