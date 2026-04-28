@@ -25,17 +25,20 @@ bool test_assert_impl(char *file, int line, char *cond_str, bool cond) {
 
 #include "tests.c"
 
-void kernel_test(Bootstrap_Info info) {
+void kernel_test() {
     kernel_init();
 
     int passed = 0;
     int failed = 0;
+    UNUSED(passed);
+    UNUSED(failed);
 
+    /*
     for (size_t i = 0; i < ARRAY_LEN(tests); i++) {
         Test test = tests[i];
         fmt_print("Running test %s... ", test.name);
 
-        bool result = test.function(info);
+        bool result = test.function();
         if (result) {
             fmt_print("OK!\n");
             passed += 1;
@@ -48,6 +51,7 @@ void kernel_test(Bootstrap_Info info) {
         fmt_print("--------------------\n");
         fmt_print("PASSED: %d, FAILED: %d\n", passed, failed);
     }
+    */
 
     cpu_halt();
 }

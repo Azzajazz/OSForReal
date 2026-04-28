@@ -7,11 +7,12 @@
 #define ALIGN(x) __attribute__((aligned(x)))
 
 // Linker constants.
-extern int __boot_start;
-extern int __kernel_start;
-extern int __kernel_end;
-extern int __kernel_phys_start;
-extern int __kernel_phys_end;
+extern char __boot_start;
+extern char __boot_end[];
+extern char __kernel_start[];
+extern char __kernel_end[];
+extern char __kernel_phys_start[];
+extern char __kernel_phys_end[];
 
 #define PAGE_DIR_SIZE 4096
 #define PAGE_TABLES_SIZE 1024 * 1024 * 4
@@ -24,14 +25,6 @@ extern int __kernel_phys_end;
 BOOT_DATA ALIGN(PAGE_SIZE) uint32_t boot_page_directory[1024] = {0};
 BOOT_DATA ALIGN(PAGE_SIZE) uint32_t low_page_table[1024] = {0};
 BOOT_DATA ALIGN(PAGE_SIZE) uint32_t kernel_page_table[1024] = {0};
-
-#ifdef KERNEL_TEST
-    // Kernel test runner.
-    void kernel_test(Bootstrap_Info info);
-#else
-    // Kernel entry point.
-    void kernel_main(Multiboot_Info boot_info, Bootstrap_Info info);
-#endif
 
 BOOT_FN void place_page_metadata(
     size_t base_addr, size_t length,
@@ -68,113 +61,63 @@ BOOT_FN void place_page_metadata(
     }
 }
 
+#ifdef KERNEL_TEST
+    // Kernel test runner.
+    void kernel_test();
+#else
+    // Kernel entry point.
+    void kernel_main(Multiboot_Info *boot_info);
+#endif
+
+void memory_copy(void *dst, void *src, size_t size) {
+    uint8_t *dst_b = dst;
+    uint8_t *src_b = src;
+    for (size_t i = 0; i < size; i++) {
+        dst_b[i] = src_b[i];
+    }
+}
+
 BOOT_FN void bootstrap(Multiboot_Info *boot_info) {
-    // Copy the multi-boot info onto the stack so that they don't get overwritten by the paging
-    // initialisation code.
-    Multiboot_Info b_info = *boot_info;
-    // Copy the mmap information to a known location so that it doesn't get overwritten.
-    // @TODO: We should ensure that we're copying the mmap section to an available ram block.
-    uint8_t *new_mmap_addr = (uint8_t *)0x21000;
-    for (size_t i = 0; i < b_info.mmap_length; i++) {
-        new_mmap_addr[i] = ((uint8_t *)b_info.mmap_addr)[i];
-    }
-    b_info.mmap_addr = (uint32_t)new_mmap_addr;
+    // Copy the multiboot info and mmap information to a known location before setting
+    // up paging.
+    Multiboot_Info *b_info = (Multiboot_Info *)__boot_end;
+    memory_copy(b_info, boot_info, sizeof(*boot_info));
+    uint8_t *new_mmap_addr = (uint8_t *)(b_info + 1);
+    memory_copy(new_mmap_addr, (uint8_t *)b_info->mmap_addr, b_info->mmap_length);
+    b_info->mmap_addr = (uint32_t)new_mmap_addr;
 
-    size_t boot_start = (size_t)&__boot_start;
-    size_t kernel_phys_end = (size_t)&__kernel_phys_end;
-    // Find places to put the page directory, page tables and free page frame bitmap.
-    // @Improvement: Right now we just place things in the first place they can go. To reduce fragmentation,
-    // we could try to fill up smaller memory blocks as much as possible.
+    // Identity map the first 2 MB and map the kernel to address 0xC0000000.
+    uint8_t page_directory_flags = PAGE_DIR_PRESENT | PAGE_DIR_RW | PAGE_DIR_ACCESS_ALL | PAGE_DIR_ACCESSED;
+    uint8_t page_table_flags = PAGE_TABLE_PRESENT | PAGE_TABLE_RW | PAGE_TABLE_ACCESS_ALL | PAGE_TABLE_ACCESSED;
 
-    Bootstrap_Info info;
-
-
-    bool page_directory_placed = false;
-    bool page_tables_placed = false;
-    bool page_bitmap_placed = false;
-    
-    // Calculate the size of the bitmap.
-    MMap_Segment *segment = (MMap_Segment *)b_info.mmap_addr;
-    size_t bytes_traversed = segment->size + 4;
-    while (bytes_traversed < b_info.mmap_length) {
-        bytes_traversed += segment->size + 4;
-        segment = (MMap_Segment*)((uint8_t*)segment + segment->size + 4);
+    size_t virt_addr = 0;
+    boot_page_directory[virt_addr >> 22] = (uint32_t)low_page_table | page_directory_flags;
+    for (size_t phys_addr = 0; phys_addr < 0x200000; phys_addr += PAGE_SIZE) {
+        low_page_table[(virt_addr >> 12) & 0x3FF] = phys_addr | page_table_flags;
+        virt_addr += PAGE_SIZE;
     }
 
-    uint64_t memory_size = segment->base_addr + segment->length;
-
-    // 1 bit per page.
-    size_t page_count = DIV_CEIL(memory_size, PAGE_SIZE);
-    info.page_bitmap_size = DIV_CEIL(page_count, 8);
-
-    // Place things.
-    bytes_traversed = 0;
-    segment = (MMap_Segment *)b_info.mmap_addr;
-    while (bytes_traversed < b_info.mmap_length) {
-        if (segment->type != 1) {
-            bytes_traversed += segment->size + 4;
-            segment = (MMap_Segment*)((uint8_t*)segment + segment->size + 4);
-            continue;
-        }
-
-        // The kernel could be placed here. Make sure we don't overwrite it.
-        bool contains_kernel = false;
-        if (segment->base_addr >= boot_start && segment->base_addr + segment->length < kernel_phys_end) {
-            contains_kernel = true;
-        }
-
-        if (segment->base_addr < boot_start && segment->base_addr + segment->length > boot_start) {
-            // The start of the segment is free.
-            size_t base_addr = segment->base_addr;
-            size_t length = boot_start - segment->base_addr;
-            place_page_metadata(
-                base_addr, length,
-                &info,
-                PAGE_DIR_SIZE, PAGE_TABLES_SIZE, info.page_bitmap_size,
-                &page_directory_placed, &page_tables_placed, &page_bitmap_placed
-            );
-            contains_kernel = true;
-        }
-
-        if (segment->base_addr < kernel_phys_end && segment->base_addr + segment->length > kernel_phys_end) {
-            // The end of the segment is free.
-            size_t base_addr = kernel_phys_end;
-            size_t length = segment->base_addr + segment->length - kernel_phys_end;
-            place_page_metadata(
-                base_addr, length,
-                &info,
-                PAGE_DIR_SIZE, PAGE_TABLES_SIZE, info.page_bitmap_size,
-                &page_directory_placed, &page_tables_placed, &page_bitmap_placed
-            );
-            contains_kernel = true;
-        }
-
-        if (!contains_kernel) {
-            size_t base_addr = (size_t)segment->base_addr;
-            size_t length = (size_t)segment->length;
-
-            place_page_metadata(
-                base_addr, length,
-                &info,
-                PAGE_DIR_SIZE, PAGE_TABLES_SIZE, info.page_bitmap_size,
-                &page_directory_placed, &page_tables_placed, &page_bitmap_placed
-            );
-        }
-
-        if (page_directory_placed && page_tables_placed && page_bitmap_placed) {
-            break;
-        }
-
-        bytes_traversed += segment->size + 4;
-        segment = (MMap_Segment*)((uint8_t*)segment + segment->size + 4);
+    virt_addr = 0xC0000000;
+    boot_page_directory[virt_addr >> 22] = (uint32_t)kernel_page_table | page_directory_flags;
+    for (size_t phys_addr = (size_t)__kernel_phys_start; phys_addr < (size_t)__kernel_phys_end; phys_addr += PAGE_SIZE) {
+        kernel_page_table[(virt_addr >> 12) & 0x3FF] = phys_addr | page_table_flags;
+        virt_addr += PAGE_SIZE;
     }
 
     // Initialize the paging.
-    paging_init(&info, b_info);
+    asm(
+        "mov cr3, %0\t\n"
+
+        "mov eax, cr0\t\n"
+        "or eax, 0x80000001\t\n"
+        "mov cr0, eax\t\n"
+        :
+        : "r" ((uint32_t)boot_page_directory)
+    );
 
 #ifdef KERNEL_TEST
-    kernel_test(info);
+    kernel_test();
 #else
-    kernel_main(b_info, info);
+    kernel_main(b_info);
 #endif
 }

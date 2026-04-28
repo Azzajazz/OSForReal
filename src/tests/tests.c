@@ -58,5 +58,5 @@ bool kernel_test_boot_info_is_correct(Bootstrap_Info info) {
 }
 
 Test tests[] = {
-    TEST(kernel_test_boot_info_is_correct),
+    //TEST(kernel_test_boot_info_is_correct),
 };

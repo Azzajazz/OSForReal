@@ -43,12 +43,12 @@ void kernel_init() {
     interrupts_init();
 }
 
-void kernel_main(Multiboot_Info boot_info, Bootstrap_Info info) {
+void kernel_main(Multiboot_Info *boot_info) {
     kernel_init();
 
-    MMap_Segment *segment = (MMap_Segment *)boot_info.mmap_addr;
+    MMap_Segment *segment = (MMap_Segment *)boot_info->mmap_addr;
     size_t bytes_traversed = 0;
-    while (bytes_traversed < boot_info.mmap_length) {
+    while (bytes_traversed < boot_info->mmap_length) {
         fmt_print("addr: %lx, length: %lx, type: %u, size: %u\n",
             segment->base_addr, segment->length, segment->type, segment->size);
 
@@ -64,11 +64,13 @@ void kernel_main(Multiboot_Info boot_info, Bootstrap_Info info) {
     fmt_print("kernel_start: %x\n", (uint32_t)&__kernel_start);
     fmt_print("kernel_end: %x\n", (uint32_t)&__kernel_end);
 
+    /*
     fmt_print("\n");
     fmt_print("info.page_directory: %x\n", info.page_directory);
     fmt_print("info.page_tables: %x\n", info.page_tables);
     fmt_print("info.page_bitmap: %x\n", info.page_bitmap);
     fmt_print("info.page_bitmap_size: %u\n", info.page_bitmap_size);
+    */
 
     //void *memory = kernel_allocate(1024);
 

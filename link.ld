@@ -27,18 +27,18 @@ SECTIONS
     /* @FIXME: Find a more portable way of doing this */
 	. = 1M;
 
+    __boot_start = .;
     .boot :
     {
-        __boot_start = .;
         *(.multiboot)
         *(.stack)
         *(.boot_text)
         *(.boot_data)
         *(.boot_bss)
-        __boot_end = .;
     } AT> BIGBLOCK
-    __kernel_phys_start = ALIGN(4K);
+    __boot_end = ALIGN(4K);
 
+    __kernel_phys_start = __boot_end;
     . = 0xC0000000;
 	.text BLOCK(4K) : ALIGN(4K)
 	{
