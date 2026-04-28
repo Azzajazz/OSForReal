@@ -1,16 +1,14 @@
 - Allocators
     X Place page metadata.
     X Initialize page metadata.
-        - Write tests for this.
-    - Move gdt out of bootstrap.
-    - Move stack out of bootstrap.
+        X Write tests for this.
     - Write a page frame allocator.
     - Write a GPA or a bump allocator.
 
 - TagFS
     - Expand on docs as needed.
-    - Write tfsfmt utility.
-        - TESTS
+    X Write tfsfmt utility.
+        X TESTS
             X Write deterministic random data to a file.
         X Format an image.
         X Create a file in a formatted image.
@@ -19,10 +17,12 @@
     - FUSE driver.
     - Port TagFS to OSForReal.
 
+--------------------------------------------------------------------------------
+- BUGS
+
+--------------------------------------------------------------------------------
 - Improvements
     - ASSERT does an early return in tests, which skips any cleanup. Think of a way to run cleanup no matter what (maybe look at other testing frameworks to see what they do)
-
-- BUGS
 
 --------------------------------------------------------------------------------
 Toolchain:
@@ -43,7 +43,9 @@ Build scripts:
 - Test script
 
 --------------------------------------------------------------------------------
-Misc:
+Misc/low priority:
 - Reduce build times of interrupt handlers.
+- Move gdt out of bootstrap.
+- Move stack out of bootstrap.
 
 --------------------------------------------------------------------------------

@@ -27,20 +27,14 @@ SECTIONS
     /* @FIXME: Find a more portable way of doing this */
 	. = 1M;
 
-	/* First put the multiboot header, as it is required to be put very early
-	   in the image or the bootloader won't recognize the file format.
-	   Next we'll put the .text section. */
     .boot :
     {
         __boot_start = .;
         *(.multiboot)
         *(.stack)
-		*boot.o (.text)
-        *boot.o (.data)
-        *boot.o (.bss)
-        *bootstrap*.o (.text)
-        *bootstrap*.o (.data)
-        *bootstrap*.o (.bss)
+        *(.boot_text)
+        *(.boot_data)
+        *(.boot_bss)
         __boot_end = .;
     } AT> BIGBLOCK
     __kernel_phys_start = ALIGN(4K);
@@ -49,27 +43,27 @@ SECTIONS
 	.text BLOCK(4K) : ALIGN(4K)
 	{
         __kernel_start = .;
-		EXCLUDE_FILE(*boot.o *bootstrap*.o) *(.text)
+		*(.text)
 	} AT> BIGBLOCK 
 
 	/* Read-only data. */
 	.rodata BLOCK(4K) : ALIGN(4K)
 	{
-		EXCLUDE_FILE(*boot.o *bootstrap*.o) *(.rodata)
-        EXCLUDE_FILE(*boot.o *bootstrap*.o) *(.rodata.*)
+		*(.rodata)
+        *(.rodata.*)
 	} AT> BIGBLOCK
 
 	/* Read-write data (initialized) */
 	.data BLOCK(4K) : ALIGN(4K)
 	{
-		EXCLUDE_FILE(*boot.o *bootstrap*.o) *(.data)
+		*(.data)
 	} AT> BIGBLOCK
 
 	/* Read-write data (uninitialized) and stack */
 	.bss BLOCK(4K) : ALIGN(4K)
 	{
-		EXCLUDE_FILE(*boot.o *bootstrap*.o) *(COMMON)
-		EXCLUDE_FILE(*boot.o *bootstrap*.o) *(.bss)
+		*(COMMON)
+		*(.bss)
 	} AT> BIGBLOCK
 
     /* Debug info sections. */
@@ -86,6 +80,4 @@ SECTIONS
     {
         *(.comment)
     }
-
-    __loaded_size = (__boot_end - __boot_start) + (__kernel_end - __kernel_start);
 }

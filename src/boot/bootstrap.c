@@ -1,12 +1,13 @@
 #include "../common.h"
 
+#define BOOT_FN __attribute__((section(".boot_text")))
+
 // Linker constants.
 extern int __boot_start;
 extern int __kernel_start;
 extern int __kernel_end;
 extern int __kernel_phys_start;
 extern int __kernel_phys_end;
-extern int __loaded_size;
 
 #define PAGE_DIR_SIZE 1024 * 4
 #define PAGE_TABLES_SIZE 1024 * 1024 * 4
@@ -24,7 +25,7 @@ extern int __loaded_size;
     void kernel_main(Multiboot_Info boot_info, Bootstrap_Info info);
 #endif
 
-void place_page_metadata(
+BOOT_FN void place_page_metadata(
     size_t base_addr, size_t length,
     Bootstrap_Info *info,
     size_t page_directory_size, size_t page_tables_size, size_t page_bitmap_size,
@@ -59,7 +60,7 @@ void place_page_metadata(
     }
 }
 
-void bootstrap(Multiboot_Info *boot_info) {
+BOOT_FN void bootstrap(Multiboot_Info *boot_info) {
     // Copy the multi-boot info onto the stack so that they don't get overwritten by the paging
     // initialisation code.
     Multiboot_Info b_info = *boot_info;

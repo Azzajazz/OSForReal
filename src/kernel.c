@@ -4,6 +4,7 @@
 #include "boot/multiboot.c"
 #include "platform/x86.c"
 #include "hal/hal.c"
+// #include "memory_management.c"
 #include "std/std.c"
 
 void assert(char *file, int line, const char *func, bool condition, char *message);
@@ -16,7 +17,6 @@ extern int __kernel_phys_start;
 extern int __kernel_phys_end;
 extern int __kernel_start;
 extern int __kernel_end;
-extern int __loaded_size;
 
 void assert(char *file, int line, const char *func, bool condition, char *message) {
     if (condition) {
@@ -43,8 +43,7 @@ void kernel_init() {
     interrupts_init();
 }
 
-void kernel_main(Multiboot_Info boot_info, Bootstrap_Info info)
-{
+void kernel_main(Multiboot_Info boot_info, Bootstrap_Info info) {
     kernel_init();
 
     MMap_Segment *segment = (MMap_Segment *)boot_info.mmap_addr;
@@ -64,13 +63,14 @@ void kernel_main(Multiboot_Info boot_info, Bootstrap_Info info)
     fmt_print("kernel_phys_end: %x\n", (uint32_t)&__kernel_phys_end);
     fmt_print("kernel_start: %x\n", (uint32_t)&__kernel_start);
     fmt_print("kernel_end: %x\n", (uint32_t)&__kernel_end);
-    fmt_print("loaded_size: %d\n", (uint32_t)&__loaded_size);
 
     fmt_print("\n");
     fmt_print("info.page_directory: %x\n", info.page_directory);
     fmt_print("info.page_tables: %x\n", info.page_tables);
     fmt_print("info.page_bitmap: %x\n", info.page_bitmap);
     fmt_print("info.page_bitmap_size: %u\n", info.page_bitmap_size);
+
+    //void *memory = kernel_allocate(1024);
 
     // @FIXME: Assert that the multiboot magic number is correct.
     // ASSERT(boot_info->flags & (1 << 6), "Boot info mmap is not valid.");

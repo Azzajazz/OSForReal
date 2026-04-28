@@ -18,7 +18,7 @@
 
 // NOTE: Assumes that the page directory entry has been written to.
 // NOTE: Assumes that page is PAGE_SIZE aligned.
-void map_page_to_virtual(
+BOOT_FN void map_page_to_virtual(
     uint32_t page,
     uint32_t virtual,
     uint8_t flags,
@@ -35,7 +35,7 @@ void map_page_to_virtual(
 }
 
 // NOTE: page_table_area is guaranteed to have enough space to hold 1024 page tables contiguously.
-bool paging_init(Bootstrap_Info *info, Multiboot_Info boot_info) {
+BOOT_FN bool paging_init(Bootstrap_Info *info, Multiboot_Info boot_info) {
     // Set up the page directory.
     uint8_t page_directory_flags = PAGE_DIR_PRESENT | PAGE_DIR_RW | PAGE_DIR_ACCESS_ALL | PAGE_DIR_ACCESSED;
     for (int i = 0; i < 1024; i++) {
