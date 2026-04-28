@@ -40,27 +40,27 @@ SECTIONS
 
     __kernel_phys_start = __boot_end;
     . = 0xC0000000;
-	.text BLOCK(4K) : ALIGN(4K)
+	.text : ALIGN(4K)
 	{
         __kernel_start = .;
 		*(.text)
 	} AT> BIGBLOCK 
 
 	/* Read-only data. */
-	.rodata BLOCK(4K) : ALIGN(4K)
+	.rodata :
 	{
 		*(.rodata)
         *(.rodata.*)
 	} AT> BIGBLOCK
 
 	/* Read-write data (initialized) */
-	.data BLOCK(4K) : ALIGN(4K)
+	.data :
 	{
 		*(.data)
 	} AT> BIGBLOCK
 
 	/* Read-write data (uninitialized) and stack */
-	.bss BLOCK(4K) : ALIGN(4K)
+	.bss :
 	{
 		*(COMMON)
 		*(.bss)
