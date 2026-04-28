@@ -6,3 +6,4 @@
 
 // FUNCTIONALITY
 #include "io.c"
+#include "memory.c"

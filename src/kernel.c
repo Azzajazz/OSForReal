@@ -1,22 +1,21 @@
 #include "common.h"
 
-#include "boot/interface.c"
-#include "boot/multiboot.c"
-#include "platform/x86.c"
-#include "hal/hal.c"
-// #include "memory_management.c"
-#include "std/std.c"
-
 void assert(char *file, int line, const char *func, bool condition, char *message);
 #define ASSERT(condition, message) assert(__FILE__, __LINE__, __func__, (condition), (message))
 
+#include "boot/multiboot.c"
+#include "platform/x86.c"
+#include "hal/hal.c"
+#include "std/std.c"
+#include "page_frame_allocator.c"
+
 // Linker symbols
-extern int __boot_start;
-extern int __boot_end;
-extern int __kernel_phys_start;
-extern int __kernel_phys_end;
-extern int __kernel_start;
-extern int __kernel_end;
+extern int __boot_start[];
+extern int __boot_end[];
+extern int __kernel_phys_start[];
+extern int __kernel_phys_end[];
+extern int __kernel_start[];
+extern int __kernel_end[];
 
 void assert(char *file, int line, const char *func, bool condition, char *message) {
     if (condition) {
@@ -57,23 +56,20 @@ void kernel_main(Multiboot_Info *boot_info) {
     }
 
     fmt_print("\n");
-    fmt_print("boot_start: %x\n", (uint32_t)&__boot_start);
-    fmt_print("boot_end: %x\n", (uint32_t)&__boot_end);
-    fmt_print("kernel_phys_start: %x\n", (uint32_t)&__kernel_phys_start);
-    fmt_print("kernel_phys_end: %x\n", (uint32_t)&__kernel_phys_end);
-    fmt_print("kernel_start: %x\n", (uint32_t)&__kernel_start);
-    fmt_print("kernel_end: %x\n", (uint32_t)&__kernel_end);
+    fmt_print("boot_start: %x\n", (uint32_t)__boot_start);
+    fmt_print("boot_end: %x\n", (uint32_t)__boot_end);
+    fmt_print("kernel_phys_start: %x\n", (uint32_t)__kernel_phys_start);
+    fmt_print("kernel_phys_end: %x\n", (uint32_t)__kernel_phys_end);
+    fmt_print("kernel_start: %x\n", (uint32_t)__kernel_start);
+    fmt_print("kernel_end: %x\n", (uint32_t)__kernel_end);
 
-    /*
-    fmt_print("\n");
-    fmt_print("info.page_directory: %x\n", info.page_directory);
-    fmt_print("info.page_tables: %x\n", info.page_tables);
-    fmt_print("info.page_bitmap: %x\n", info.page_bitmap);
-    fmt_print("info.page_bitmap_size: %u\n", info.page_bitmap_size);
-    */
+    fmt_print("%u, %u\n", KiB, MiB);
 
-    //void *memory = kernel_allocate(1024);
-
+    int *some_memory = memory_allocate(sizeof(*some_memory));
+    *some_memory = 5;
+    ASSERT(*some_memory == 5, "Should equal 5");
+    memory_free(some_memory);
+    
     // @FIXME: Assert that the multiboot magic number is correct.
     // ASSERT(boot_info->flags & (1 << 6), "Boot info mmap is not valid.");
 

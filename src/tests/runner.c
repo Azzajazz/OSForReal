@@ -33,9 +33,12 @@ void kernel_test() {
     UNUSED(passed);
     UNUSED(failed);
 
-    /*
     for (size_t i = 0; i < ARRAY_LEN(tests); i++) {
         Test test = tests[i];
+        if (test.function == 0) {
+            continue;
+        }
+
         fmt_print("Running test %s... ", test.name);
 
         bool result = test.function();
@@ -51,7 +54,6 @@ void kernel_test() {
         fmt_print("--------------------\n");
         fmt_print("PASSED: %d, FAILED: %d\n", passed, failed);
     }
-    */
 
     cpu_halt();
 }

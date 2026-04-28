@@ -17,49 +17,13 @@ extern char __kernel_phys_end[];
 #define PAGE_DIR_SIZE 4096
 #define PAGE_TABLES_SIZE 1024 * 1024 * 4
 
-#include "interface.c"
 #include "multiboot.c"
 #include "gdt.c"
 #include "paging.c"
 
-BOOT_DATA ALIGN(PAGE_SIZE) uint32_t boot_page_directory[1024] = {0};
+BOOT_DATA ALIGN(PAGE_SIZE) uint32_t page_directory[1024] = {0};
 BOOT_DATA ALIGN(PAGE_SIZE) uint32_t low_page_table[1024] = {0};
 BOOT_DATA ALIGN(PAGE_SIZE) uint32_t kernel_page_table[1024] = {0};
-
-BOOT_FN void place_page_metadata(
-    size_t base_addr, size_t length,
-    Bootstrap_Info *info,
-    size_t page_directory_size, size_t page_tables_size, size_t page_bitmap_size,
-    bool *page_directory_placed, bool *page_tables_placed, bool *page_bitmap_placed
-) {
-    // @TODO: Alignment?
-    if (!*page_directory_placed) {
-        if (base_addr + page_directory_size <= length) {
-            info->page_directory = (void*)base_addr;
-            base_addr += page_directory_size;
-            length -= page_directory_size;
-            *page_directory_placed = true;
-        }
-    }
-
-    if (!*page_tables_placed) {
-        if (base_addr + page_tables_size <= length) {
-            info->page_tables = (void*)base_addr;
-            base_addr += page_tables_size;
-            length -= page_tables_size;
-            *page_tables_placed = true;
-        }
-    }
-
-    if (!*page_bitmap_placed) {
-        if (base_addr + page_bitmap_size <= length) {
-            info->page_bitmap = (void*)base_addr;
-            base_addr += page_bitmap_size;
-            length -= page_bitmap_size;
-            *page_bitmap_placed = true;
-        }
-    }
-}
 
 #ifdef KERNEL_TEST
     // Kernel test runner.
@@ -91,14 +55,14 @@ BOOT_FN void bootstrap(Multiboot_Info *boot_info) {
     uint8_t page_table_flags = PAGE_TABLE_PRESENT | PAGE_TABLE_RW | PAGE_TABLE_ACCESS_ALL | PAGE_TABLE_ACCESSED;
 
     size_t virt_addr = 0;
-    boot_page_directory[virt_addr >> 22] = (uint32_t)low_page_table | page_directory_flags;
+    page_directory[virt_addr >> 22] = (uint32_t)low_page_table | page_directory_flags;
     for (size_t phys_addr = 0; phys_addr < 0x200000; phys_addr += PAGE_SIZE) {
         low_page_table[(virt_addr >> 12) & 0x3FF] = phys_addr | page_table_flags;
         virt_addr += PAGE_SIZE;
     }
 
     virt_addr = 0xC0000000;
-    boot_page_directory[virt_addr >> 22] = (uint32_t)kernel_page_table | page_directory_flags;
+    page_directory[virt_addr >> 22] = (uint32_t)kernel_page_table | page_directory_flags;
     for (size_t phys_addr = (size_t)__kernel_phys_start; phys_addr < (size_t)__kernel_phys_end; phys_addr += PAGE_SIZE) {
         kernel_page_table[(virt_addr >> 12) & 0x3FF] = phys_addr | page_table_flags;
         virt_addr += PAGE_SIZE;
@@ -112,7 +76,7 @@ BOOT_FN void bootstrap(Multiboot_Info *boot_info) {
         "or eax, 0x80000001\t\n"
         "mov cr0, eax\t\n"
         :
-        : "r" ((uint32_t)boot_page_directory)
+        : "r" ((uint32_t)page_directory)
     );
 
 #ifdef KERNEL_TEST

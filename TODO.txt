@@ -23,6 +23,7 @@
 --------------------------------------------------------------------------------
 - Improvements
     - ASSERT does an early return in tests, which skips any cleanup. Think of a way to run cleanup no matter what (maybe look at other testing frameworks to see what they do)
+    - warning: ./build/os-for-real.elf has a LOAD segment with RWX permissions
 
 --------------------------------------------------------------------------------
 Toolchain:
