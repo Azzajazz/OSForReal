@@ -3,7 +3,7 @@
 set -xe
 
 extra_flags=""
-binary="os-for-real.bin"
+binary="os-for-real"
 
 if [[ $OS_MODE = "debug" ]]
 then
@@ -12,7 +12,7 @@ fi
 
 if [[ $OS_TEST = 1 ]]
 then
-    binary="os-for-real-test.bin"
+    binary="os-for-real-test"
 fi
 
 qemu-system-i386 -nographic -kernel build/$binary $extra_flags

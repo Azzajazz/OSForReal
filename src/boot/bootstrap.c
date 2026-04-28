@@ -1,6 +1,10 @@
 #include "../common.h"
 
 #define BOOT_FN __attribute__((section(".boot_text")))
+#define BOOT_DATA __attribute__((section(".boot_data")))
+#define BOOT_BSS __attribute__((section(".boot_bss")))
+
+#define ALIGN(x) __attribute__((aligned(x)))
 
 // Linker constants.
 extern int __boot_start;
@@ -9,13 +13,17 @@ extern int __kernel_end;
 extern int __kernel_phys_start;
 extern int __kernel_phys_end;
 
-#define PAGE_DIR_SIZE 1024 * 4
+#define PAGE_DIR_SIZE 4096
 #define PAGE_TABLES_SIZE 1024 * 1024 * 4
 
 #include "interface.c"
 #include "multiboot.c"
 #include "gdt.c"
 #include "paging.c"
+
+BOOT_DATA ALIGN(PAGE_SIZE) uint32_t boot_page_directory[1024] = {0};
+BOOT_DATA ALIGN(PAGE_SIZE) uint32_t low_page_table[1024] = {0};
+BOOT_DATA ALIGN(PAGE_SIZE) uint32_t kernel_page_table[1024] = {0};
 
 #ifdef KERNEL_TEST
     // Kernel test runner.

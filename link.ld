@@ -66,12 +66,6 @@ SECTIONS
 		*(.bss)
 	} AT> BIGBLOCK
 
-    /* Debug info sections. */
-    .eh_frame BLOCK(4K) : ALIGN(4K)
-    {
-        *(.eh_frame)
-    } AT> BIGBLOCK
-
     . = ALIGN(4K);
     __kernel_end = .;
     __kernel_phys_end = __kernel_phys_start + (__kernel_end - __kernel_start);
