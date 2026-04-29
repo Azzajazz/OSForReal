@@ -4,8 +4,9 @@ ENTRY(_start)
 
 MEMORY
 {
-    /* We don't really know a length here, but it's surely more than 1M*/
-    BIGBLOCK (rwx): ORIGIN = 1M, LENGTH = 1M
+    BOOTPHYS (rwx): ORIGIN = 1M, LENGTH = 1M
+    KERNELPHYS (rwx): ORIGIN = 2M, LENGTH = 8M
+    KERNELVIRT (rwx): ORIGIN = 0xC0000000, LENGTH = 8M
 }
 
 /* Tell where the various sections of the object files will be put in the final
@@ -30,41 +31,40 @@ SECTIONS
     __boot_start = .;
     .boot :
     {
-        *(.multiboot)
-        *(.stack)
+        KEEP(*(.multiboot))
+        KEEP(*(.stack))
         *(.boot_text)
         *(.boot_data)
         *(.boot_bss)
-    } AT> BIGBLOCK
+    } AT> BOOTPHYS
     __boot_end = ALIGN(4K);
 
-    __kernel_phys_start = __boot_end;
-    . = 0xC0000000;
-	.text : ALIGN(4K)
+    __kernel_phys_start = ORIGIN(KERNELPHYS);
+	.text :
 	{
         __kernel_start = .;
 		*(.text)
-	} AT> BIGBLOCK 
+	} > KERNELVIRT AT> KERNELPHYS 
 
 	/* Read-only data. */
-	.rodata :
+	.rodata : ALIGN(32)
 	{
 		*(.rodata)
         *(.rodata.*)
-	} AT> BIGBLOCK
+	} > KERNELVIRT AT> KERNELPHYS 
 
 	/* Read-write data (initialized) */
 	.data :
 	{
 		*(.data)
-	} AT> BIGBLOCK
+	} > KERNELVIRT AT> KERNELPHYS 
 
 	/* Read-write data (uninitialized) and stack */
 	.bss :
 	{
 		*(COMMON)
 		*(.bss)
-	} AT> BIGBLOCK
+	} > KERNELVIRT AT> KERNELPHYS 
 
     . = ALIGN(4K);
     __kernel_end = .;

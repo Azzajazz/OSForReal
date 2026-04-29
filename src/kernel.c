@@ -6,8 +6,8 @@ void assert(char *file, int line, const char *func, bool condition, char *messag
 #include "boot/multiboot.c"
 #include "platform/x86.c"
 #include "hal/hal.c"
-#include "std/std.c"
 #include "page_frame_allocator.c"
+#include "std/std.c"
 
 // Linker symbols
 extern int __boot_start[];

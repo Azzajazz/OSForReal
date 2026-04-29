@@ -4,8 +4,6 @@
 #define BOOT_DATA __attribute__((section(".boot_data")))
 #define BOOT_BSS __attribute__((section(".boot_bss")))
 
-#define ALIGN(x) __attribute__((aligned(x)))
-
 // Linker constants.
 extern char __boot_start;
 extern char __boot_end[];
@@ -23,7 +21,8 @@ extern char __kernel_phys_end[];
 
 BOOT_DATA ALIGN(PAGE_SIZE) uint32_t page_directory[1024] = {0};
 BOOT_DATA ALIGN(PAGE_SIZE) uint32_t low_page_table[1024] = {0};
-BOOT_DATA ALIGN(PAGE_SIZE) uint32_t kernel_page_table[1024] = {0};
+BOOT_DATA ALIGN(PAGE_SIZE) uint32_t kernel_page_table1[1024] = {0};
+BOOT_DATA ALIGN(PAGE_SIZE) uint32_t kernel_page_table2[1024] = {0};
 
 #ifdef KERNEL_TEST
     // Kernel test runner.
@@ -33,7 +32,7 @@ BOOT_DATA ALIGN(PAGE_SIZE) uint32_t kernel_page_table[1024] = {0};
     void kernel_main(Multiboot_Info *boot_info);
 #endif
 
-void memory_copy(void *dst, void *src, size_t size) {
+BOOT_FN void memory_copy(void *dst, void *src, size_t size) {
     uint8_t *dst_b = dst;
     uint8_t *src_b = src;
     for (size_t i = 0; i < size; i++) {
@@ -50,7 +49,8 @@ BOOT_FN void bootstrap(Multiboot_Info *boot_info) {
     memory_copy(new_mmap_addr, (uint8_t *)b_info->mmap_addr, b_info->mmap_length);
     b_info->mmap_addr = (uint32_t)new_mmap_addr;
 
-    // Identity map the first 2 MB and map the kernel to address 0xC0000000.
+    // Identity map the first 2 MB, map the kernel to address 0xC0000000 and map the
+    // page tables section to 0xC0400000.
     uint8_t page_directory_flags = PAGE_DIR_PRESENT | PAGE_DIR_RW | PAGE_DIR_ACCESS_ALL | PAGE_DIR_ACCESSED;
     uint8_t page_table_flags = PAGE_TABLE_PRESENT | PAGE_TABLE_RW | PAGE_TABLE_ACCESS_ALL | PAGE_TABLE_ACCESSED;
 
@@ -61,10 +61,19 @@ BOOT_FN void bootstrap(Multiboot_Info *boot_info) {
         virt_addr += PAGE_SIZE;
     }
 
+    size_t kernel_phys_mid = (size_t)__kernel_phys_start + 4 * MiB;
+
     virt_addr = 0xC0000000;
-    page_directory[virt_addr >> 22] = (uint32_t)kernel_page_table | page_directory_flags;
-    for (size_t phys_addr = (size_t)__kernel_phys_start; phys_addr < (size_t)__kernel_phys_end; phys_addr += PAGE_SIZE) {
-        kernel_page_table[(virt_addr >> 12) & 0x3FF] = phys_addr | page_table_flags;
+    page_directory[virt_addr >> 22] = (uint32_t)kernel_page_table1 | page_directory_flags;
+    for (size_t phys_addr = (size_t)__kernel_phys_start; phys_addr < kernel_phys_mid; phys_addr += PAGE_SIZE) {
+        kernel_page_table1[(virt_addr >> 12) & 0x3FF] = phys_addr | page_table_flags;
+        virt_addr += PAGE_SIZE;
+    }
+
+    virt_addr = 0xC0400000;
+    page_directory[virt_addr >> 22] = (uint32_t)kernel_page_table2 | page_directory_flags;
+    for (size_t phys_addr = kernel_phys_mid; phys_addr < (size_t)__kernel_phys_end; phys_addr += PAGE_SIZE) {
+        kernel_page_table2[(virt_addr >> 12) & 0x3FF] = phys_addr | page_table_flags;
         virt_addr += PAGE_SIZE;
     }
 

@@ -9,6 +9,7 @@
 // Attribute abbreviations.
 #define PACKED __attribute__((packed))
 #define INTERRUPT __attribute__((target("general-regs-only"),interrupt))
+#define ALIGN(x) __attribute__((aligned(x)))
 
 // Helpful macros.
 #define ARRAY_LEN(array) (sizeof(array) / sizeof(array[0]))

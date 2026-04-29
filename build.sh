@@ -26,7 +26,7 @@ mkdir -p $BUILD_DIR
 $TOOLCHAIN_PREFIX/$TARGET-as -c $SRC_DIR/boot/boot.s -o $BUILD_DIR/boot.o
 $TOOLCHAIN_PREFIX/$TARGET-gcc -c $SRC_DIR/boot/bootstrap.c -o $BUILD_DIR/bootstrap.o $CFLAGS
 $TOOLCHAIN_PREFIX/$TARGET-gcc -c $SRC_DIR/kernel.c -o $BUILD_DIR/kernel.o $CFLAGS
-$TOOLCHAIN_PREFIX/$TARGET-gcc -T link.ld -Wl,-Map=$BUILD_DIR/output.map -o $BUILD_DIR/os-for-real.elf $CFLAGS -nostdlib $BUILD_DIR/boot.o $BUILD_DIR/bootstrap.o $BUILD_DIR/kernel.o -lgcc
+$TOOLCHAIN_PREFIX/$TARGET-gcc -T link.ld -Wl,-Map=$BUILD_DIR/output.map -Wl,--gc-sections -o $BUILD_DIR/os-for-real.elf $CFLAGS -nostdlib $BUILD_DIR/boot.o $BUILD_DIR/bootstrap.o $BUILD_DIR/kernel.o -lgcc
 
 # It's more convenient to put the debug info in a different file.
 $TOOLCHAIN_PREFIX/$TARGET-objcopy --strip-debug $BUILD_DIR/os-for-real.elf $BUILD_DIR/os-for-real

@@ -8,9 +8,9 @@ typedef struct Memory_Segment {
 Memory_Segment *free_segments_head;
 
 bool memory_init() {
-    // Map one page so that we have some memory. We allow 4MiB for the kernel to grow,
-    // so use the virtual address 0xC0400000.
-    void *first_page_virt_addr = (void *)0xC0400000;
+    // Map one page so that we have some memory. We reserve 4MiB for the page tables
+    // and we allow 4MiB for the kernel to grow, so use the virtual address 0xC0800000.
+    void *first_page_virt_addr = (void *)0xC0800000;
     bool success = pfa_commit_page(first_page_virt_addr);
     free_segments_head = first_page_virt_addr;
     free_segments_head->next = 0;
