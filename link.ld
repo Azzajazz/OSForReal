@@ -5,9 +5,10 @@ ENTRY(_start)
 MEMORY
 {
     BOOTPHYS (rwx): ORIGIN = 1M, LENGTH = 1M
-    KERNELPHYS (rwx): ORIGIN = 2M, LENGTH = 8M
     KERNELVIRT (rwx): ORIGIN = 0xC0000000, LENGTH = 8M
 }
+
+VIRT_PHYS_OFFSET = 0xC0000000 - 0x200000;
 
 /* Tell where the various sections of the object files will be put in the final
    kernel image. */
@@ -39,35 +40,30 @@ SECTIONS
     } AT> BOOTPHYS
     __boot_end = ALIGN(4K);
 
-    __kernel_phys_start = ORIGIN(KERNELPHYS);
-	.text :
+    __kernel_phys_start = 2M;
+	.text : AT(ADDR(.text) - VIRT_PHYS_OFFSET)
 	{
         __kernel_start = .;
 		*(.text)
-	} > KERNELVIRT AT> KERNELPHYS 
+	} > KERNELVIRT
 
-	/* Read-only data. */
-    /* @Hack: The alignment constraint here is taken from the non-debug build of the 
-     * kernel. It's necessary to keep the VMA and LMA of the kernel in sync. */
-    /* @TODO: Probably we could load these sections at a constant offset between VMA and LMA */
-	.rodata : ALIGN(32)
+	.rodata : AT(ADDR(.rodata) - VIRT_PHYS_OFFSET)
 	{
 		*(.rodata)
         *(.rodata.*)
-	} > KERNELVIRT AT> KERNELPHYS 
+	} > KERNELVIRT
 
-	/* Read-write data (initialized) */
-	.data :
+	.data : AT(ADDR(.data) - VIRT_PHYS_OFFSET)
 	{
 		*(.data)
-	} > KERNELVIRT AT> KERNELPHYS 
+	} > KERNELVIRT
 
 	/* Read-write data (uninitialized) and stack */
-	.bss :
+	.bss : AT(ADDR(.bss) - VIRT_PHYS_OFFSET)
 	{
 		*(COMMON)
 		*(.bss)
-	} > KERNELVIRT AT> KERNELPHYS 
+	} > KERNELVIRT
 
     . = ALIGN(4K);
     __kernel_end = .;
