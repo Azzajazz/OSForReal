@@ -7,7 +7,7 @@ extern uint32_t page_directory[1024];
 #define MAX_KERNEL_SIZE 8 * MiB
 #define RESERVED_PHYS 10 * MiB
 
-uint32_t ALIGN(PAGE_SIZE) pfa_page_tables[1024][1024] = {0};
+uint32_t ALIGN(PAGE_SIZE) pfa_page_tables[254][1024] = {0};
 // 32074 = (0x100000000 (virtual memory size)
 //  - 8MiB (reserved memory for bootloader and kernel))
 //  / 4096 (page size)
@@ -20,28 +20,9 @@ bool pfa_init(Multiboot_Info *boot_info) {
     return true;
 }
 
-void *phys_to_virt(size_t phys_addr) {
-    ASSERT(
-        phys_addr >= (size_t)__kernel_phys_start && phys_addr < (size_t)__kernel_phys_end,
-        "Physical address should be in the kernel physical address space."
-    );
-
-    return (void *)(phys_addr + ((size_t)__kernel_start - (size_t)__kernel_phys_start));
-}
-
-size_t virt_to_phys(void *virt_addr) {
-    size_t virt_addr_s = (size_t)virt_addr;
-    ASSERT(
-        virt_addr_s >= (size_t)__kernel_start && virt_addr_s < (size_t)__kernel_end,
-        "Virtual address should be in the kernel virtual address space."
-    );
-
-    return virt_addr_s - ((size_t)__kernel_start - (size_t)__kernel_phys_start);
-}
-
 size_t mapped_virt_to_pfa_tables_index(void *virt_addr) {
     size_t page_virt_base = (size_t)__kernel_start + MAX_KERNEL_SIZE;
-    size_t index = ((size_t)virt_addr - page_virt_base) / PAGE_SIZE;
+    size_t index = ((size_t)virt_addr - page_virt_base) / (PAGE_SIZE * 1024);
     ASSERT(index < ARRAY_LEN(pfa_page_tables), "Index too large.");
     return index;
 }
@@ -49,7 +30,7 @@ size_t mapped_virt_to_pfa_tables_index(void *virt_addr) {
 void *pfa_tables_index_to_mapped_virt(size_t index) {
     ASSERT(index < ARRAY_LEN(pfa_page_tables), "Index too large.");
     size_t page_virt_base = (size_t)__kernel_start + MAX_KERNEL_SIZE;
-    return (void *)(index * PAGE_SIZE + page_virt_base);
+    return (void *)(index * PAGE_SIZE * 1024 + page_virt_base);
 }
 
 size_t pfa_tables_index_to_table_phys(size_t index) {
@@ -60,7 +41,14 @@ size_t pfa_tables_index_to_table_phys(size_t index) {
         "Virtual address should be in the kernel virtual address space."
     );
     return pfa_table_virt - ((size_t)__kernel_start - (size_t)__kernel_phys_start);
+}
 
+size_t mapped_virt_to_page_directory_entry(void *virt) {
+    return (size_t)virt >> 22;
+}
+
+size_t mapped_virt_to_page_table_entry(void *virt) {
+    return ((size_t)virt >> 12) & 0x3FF;
 }
 
 bool pfa_commit_page(void *virt_addr) {
@@ -84,8 +72,8 @@ bool pfa_commit_page(void *virt_addr) {
     }
     ASSERT((page_frame & 0xFFF) == 0, "page_frame is not page aligned.");
 
-    size_t page_directory_entry = virt_addr_s >> 22;
-    size_t page_table_entry = (virt_addr_s >> 12) & 0x3FF;
+    size_t page_directory_entry = mapped_virt_to_page_directory_entry(virt_addr);
+    size_t page_table_entry = mapped_virt_to_page_table_entry(virt_addr);
     size_t pfa_page_tables_index = mapped_virt_to_pfa_tables_index(virt_addr);
     size_t page_table_phys = pfa_tables_index_to_table_phys(pfa_page_tables_index);
     page_directory[page_directory_entry] = page_table_phys |

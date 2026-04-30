@@ -79,11 +79,11 @@ void kernel_test(Multiboot_Info *boot_info) {
                 fmt_print("FAIL!\n");
                 failed += 1;
             }
-
-            fmt_print("\n--------------------------------------------------\n");
-            fmt_print("PASSED: %d, FAILED: %d\n", passed, failed);
         }
     }
+
+    fmt_print("\n--------------------------------------------------\n");
+    fmt_print("PASSED: %d, FAILED: %d\n", passed, failed);
 
     cpu_halt();
 }
