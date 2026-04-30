@@ -26,7 +26,7 @@ BOOT_DATA ALIGN(PAGE_SIZE) uint32_t kernel_page_table2[1024] = {0};
 
 #ifdef KERNEL_TEST
     // Kernel test runner.
-    void kernel_test();
+    void kernel_test(Multiboot_Info *boot_info);
 #else
     // Kernel entry point.
     void kernel_main(Multiboot_Info *boot_info);
@@ -89,7 +89,7 @@ BOOT_FN void bootstrap(Multiboot_Info *boot_info) {
     );
 
 #ifdef KERNEL_TEST
-    kernel_test();
+    kernel_test(b_info);
 #else
     kernel_main(b_info);
 #endif

@@ -47,6 +47,9 @@ SECTIONS
 	} > KERNELVIRT AT> KERNELPHYS 
 
 	/* Read-only data. */
+    /* @Hack: The alignment constraint here is taken from the non-debug build of the 
+     * kernel. It's necessary to keep the VMA and LMA of the kernel in sync. */
+    /* @TODO: Probably we could load these sections at a constant offset between VMA and LMA */
 	.rodata : ALIGN(32)
 	{
 		*(.rodata)

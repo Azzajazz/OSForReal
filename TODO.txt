@@ -1,9 +1,18 @@
+- TEST_ASSERT does an early return, which skips any cleanup. Think of a way to run cleanup no matter what (maybe look at other testing frameworks to see what they do)
+    - Make a Test_Suite abstraction with potentially setup and cleanup callbacks.
+    - Store tests in a test suite.
+    - Loop through test suites and their containing tests.
+
 - Allocators
     X Place page metadata.
     X Initialize page metadata.
         X Write tests for this.
-    - Write a page frame allocator.
+    X Write a page frame allocator.
+        - Test this.
     - Write a GPA or a bump allocator.
+        - Finish memory allocation.
+        - Implement freeing.
+        - Test this.
 
 - TagFS
     - Expand on docs as needed.
@@ -22,8 +31,10 @@
 
 --------------------------------------------------------------------------------
 - Improvements
-    - ASSERT does an early return in tests, which skips any cleanup. Think of a way to run cleanup no matter what (maybe look at other testing frameworks to see what they do)
+    - Tests
+        - Some kernel functions may only be used for testing purposes. Maybe we can conditionally compile these so that using them outside of tests will throw a linker error.
     - warning: ./build/os-for-real.elf has a LOAD segment with RWX permissions
+    - Make forward defines for files so that order of includes doesn't matter.
 
 --------------------------------------------------------------------------------
 Toolchain:
