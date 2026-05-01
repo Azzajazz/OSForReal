@@ -1,9 +1,7 @@
 - Allocators
-    X Place page metadata.
-    X Initialize page metadata.
-        X Write tests for this.
+    - Initialize page metadata.
     X Write a page frame allocator.
-        - Test this.
+        X Test this.
     - Write a GPA or a bump allocator.
         - Finish memory allocation.
         - Implement freeing.
@@ -32,6 +30,7 @@
     - warning: ./build/os-for-real.elf has a LOAD segment with RWX permissions
     - Make forward defines for files so that order of includes doesn't matter.
     - Precommit hook for nocommit; for some reason checkout-index isn't working as expected.
+    - Add a phys_addr newtype to distinguish between array indices and physical addresses.
 
 --------------------------------------------------------------------------------
 Toolchain:

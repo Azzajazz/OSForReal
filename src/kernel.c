@@ -5,12 +5,12 @@ void assert(char *file, int line, const char *func, bool condition, char *messag
 #define TODO(message) ASSERT(false, "TODO: "message)
 
 // Linker symbols
-extern int __boot_start[];
-extern int __boot_end[];
-extern int __kernel_phys_start[];
-extern int __kernel_phys_end[];
-extern int __kernel_start[];
-extern int __kernel_end[];
+extern char __boot_start[];
+extern char __boot_end[];
+extern char __kernel_phys_start[];
+extern char __kernel_phys_end[];
+extern char __kernel_start[];
+extern char __kernel_end[];
 
 #include "boot/multiboot.c"
 #include "platform/x86.c"
@@ -67,13 +67,14 @@ void kernel_main(Multiboot_Info *boot_info) {
     fmt_print("kernel_start: %x\n", (uint32_t)__kernel_start);
     fmt_print("kernel_end: %x\n", (uint32_t)__kernel_end);
 
-    int *some_memory = memory_allocate(sizeof(*some_memory));
+    int *some_memory = memory_allocate(2000 * sizeof(int));
     int *some_more_memory = memory_allocate(sizeof(*some_more_memory));
     *some_memory = 5;
     *some_more_memory = 6;
-    fmt_print("%d, %d\n", *some_memory, *some_more_memory);
     memory_free(some_memory);
     memory_free(some_more_memory);
+    fmt_print("free_segments_head->next: %x\n", free_segments_head->next);
+    fmt_print("free_segments_head->length: %u\n", free_segments_head->length);
     
     // @FIXME: Assert that the multiboot magic number is correct.
     // ASSERT(boot_info->flags & (1 << 6), "Boot info mmap is not valid.");

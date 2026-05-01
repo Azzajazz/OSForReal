@@ -20,3 +20,7 @@
 #define KiB 1024
 #define MiB (1024 * KiB)
 #define GiB (1024 * MiB)
+
+// Shared constants.
+#define PAGE_SIZE 4096
+#define MAX_KERNEL_SIZE 8 * MiB

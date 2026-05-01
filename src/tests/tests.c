@@ -120,6 +120,12 @@ bool test_page_frame_allocator_commit_more_than_32_pages_bitmap_is_correct() {
     return true;
 }
 
+// @TODO: Once we initialize the PFA properly, we should check that commiting a page fails
+// when no pages are available.
+//
+// bool test_page_frame_allocator_commit_fails_when_no_pages_left() {
+// }
+
 Test_Suite suites[] = {
     TEST_SUITE(
         page_frame_allocator,
