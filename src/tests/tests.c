@@ -120,6 +120,61 @@ bool test_page_frame_allocator_commit_more_than_32_pages_bitmap_is_correct() {
     return true;
 }
 
+// --------------------------------------------------
+// - Virtual Allocator
+// --------------------------------------------------
+
+bool test_virtual_allocator_in_order_freeing() {
+    uint8_t *allocations[100] = {0};
+    for (size_t i = 0; i < ARRAY_LEN(allocations); i++) {
+        allocations[i] = memory_allocate((i + 1) * 32 - 4);
+    }
+
+    for (size_t i = 0; i < ARRAY_LEN(allocations); i++) {
+        memory_free(allocations[i]);
+    }
+
+    TEST_ASSERT(free_segments_head->length == 163840);
+    TEST_ASSERT(free_segments_head->next == 0);
+
+    return true;
+}
+
+bool test_virtual_allocator_reverse_order_freeing() {
+    uint8_t *allocations[100] = {0};
+    for (size_t i = 0; i < ARRAY_LEN(allocations); i++) {
+        allocations[i] = memory_allocate((i + 1) * 32 - 4);
+    }
+
+    for (size_t i = 0; i < ARRAY_LEN(allocations); i++) {
+        memory_free(allocations[ARRAY_LEN(allocations) - i - 1]);
+    }
+
+    TEST_ASSERT(free_segments_head->length == 163840);
+    TEST_ASSERT(free_segments_head->next == 0);
+
+    return true;
+}
+
+bool test_virtual_allocator_out_of_order_freeing() {
+    uint8_t *allocations[100] = {0};
+    for (size_t i = 0; i < ARRAY_LEN(allocations); i++) {
+        allocations[i] = memory_allocate((i + 1) * 32 - 4);
+    }
+
+    for (size_t n = 0; n < 4; n++) {
+        for (size_t i = n; i < ARRAY_LEN(allocations); i += 4) {
+            memory_free(allocations[ARRAY_LEN(allocations) - i - 1]);
+        }
+    }
+
+    TEST_ASSERT(free_segments_head->length == 163840);
+    TEST_ASSERT(free_segments_head->next == 0);
+
+    return true;
+}
+
+
 // @TODO: Once we initialize the PFA properly, we should check that commiting a page fails
 // when no pages are available.
 //
@@ -137,6 +192,16 @@ Test_Suite suites[] = {
             TEST(test_page_frame_allocator_resets_fully_after_uncommit_all),
             TEST(test_page_frame_allocator_can_commit_multiple_pages),
             TEST(test_page_frame_allocator_commit_more_than_32_pages_bitmap_is_correct),
+        }
+    ),
+
+    TEST_SUITE(
+        virtual_allocator,
+        .cleanup = memory_free_all,
+        .tests = {
+            TEST(test_virtual_allocator_in_order_freeing),
+            TEST(test_virtual_allocator_reverse_order_freeing),
+            TEST(test_virtual_allocator_out_of_order_freeing),
         }
     ),
 };

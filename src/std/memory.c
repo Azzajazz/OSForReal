@@ -151,6 +151,14 @@ void memory_free(void *address) {
     segment->next = next_segment;
 }
 
+// @NOTE: Used for tests only. I can't think of a single reason you'd want
+// to do this otherwise.
+void memory_free_all() {
+    pfa_uncommit_all();
+    next_page_virt_addr = (void *)__kernel_start + MAX_KERNEL_SIZE;
+    free_segments_head = 0;
+}
+
 void memory_fill(void *address, size_t length, uint8_t val) {
     for (size_t i = 0; i < length; i++) {
         ((uint8_t *)address)[i] = val;

@@ -5,7 +5,7 @@
     X Write a GPA or a bump allocator.
         X Finish memory allocation.
         X Implement freeing.
-        - Test this.
+        X Test this.
 
 - TagFS
     - Expand on docs as needed.
