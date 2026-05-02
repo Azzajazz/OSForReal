@@ -15,7 +15,7 @@ extern char __kernel_phys_end[];
 #define PAGE_DIR_SIZE 4096
 #define PAGE_TABLES_SIZE 1024 * 1024 * 4
 
-#include "multiboot.c"
+#include "multiboot.h"
 #include "gdt.c"
 #include "paging.c"
 

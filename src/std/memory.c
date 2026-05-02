@@ -1,5 +1,3 @@
-#define PAGE_SIZE 4096
-
 typedef struct Memory_Segment {
     struct Memory_Segment *next;
     size_t length;

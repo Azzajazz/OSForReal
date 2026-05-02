@@ -108,7 +108,7 @@ typedef struct {
     Fmt_Print_Length_Modifier length_modifier;
 } Fmt_Print_Specifier;
 
-Fmt_Print_Specifier _parse_specifier(char **fmt) {
+Fmt_Print_Specifier parse_specifier(char **fmt) {
     Fmt_Print_Specifier specifier = {0};
     for (;;) {
         // @FIXME: More complete length modifiers.
@@ -163,7 +163,6 @@ Fmt_Print_Specifier _parse_specifier(char **fmt) {
     return specifier;
 }
 
-#define fmt_print(...) fmt_print_impl(__VA_ARGS__, 0)
 void fmt_print_impl(char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
@@ -173,7 +172,7 @@ void fmt_print_impl(char *fmt, ...) {
         char c = *p_fmt;
         if (c == '%') {
             p_fmt += 1;
-            Fmt_Print_Specifier specifier = _parse_specifier(&p_fmt);
+            Fmt_Print_Specifier specifier = parse_specifier(&p_fmt);
             switch (specifier.data_type) {
                 case FMT_PRINT_DT_CHAR: {
                     char next = va_arg(args, int);

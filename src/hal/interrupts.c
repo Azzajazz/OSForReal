@@ -1,38 +1,3 @@
-typedef struct PACKED {
-    uint16_t offset_low;
-    uint16_t segment_selector;
-    uint8_t reserved;
-    uint8_t flags;
-    uint16_t offset_high;
-} Gate_Descriptor;
-
-typedef struct {
-    uint32_t ip;
-    uint32_t cs;
-    uint32_t flags;
-    uint32_t sp;
-    uint32_t ss;
-} Interrupt_Frame;
-
-#define IDT_GATE_TASK 0x5
-#define IDT_GATE_INT16 0x6
-#define IDT_GATE_TRAP16 0x7
-#define IDT_GATE_INT32 0xE
-#define IDT_GATE_TRAP32 0xF
-
-#define IDT_PRIV_1 (1 << 5)
-#define IDT_PRIV_2 (2 << 5)
-#define IDT_PRIV_3 (3 << 5)
-
-#define IDT_PRESENT (1 << 7)
-
-
-
-struct PACKED {
-    uint16_t size;
-    uint32_t offset;
-} idtr;
-
 Gate_Descriptor idt[256];
 
 Gate_Descriptor interrupts_create_descriptor(
@@ -51,7 +16,7 @@ Gate_Descriptor interrupts_create_descriptor(
     return descriptor;
 }
 
-void fmt_print_impl(char *fmt, ...); // @TODO: Temporary
+void fmt_print_impl(char *fmt, ...);
 
 #define EXCEPTION_STUB(vector) exception_stub_##vector
 
@@ -78,7 +43,6 @@ void INTERRUPT INTERRUPT_STUB(vector)(Interrupt_Frame *frame) { \
 
 // A place for driver registered interrupts to live.
 // Drivers currently cannot register interrupts for exceptions, hence why there are 256 - 32 interrupts.
-typedef void (*Registered_Handler)(Interrupt_Frame *frame);
 Registered_Handler registered_handlers[256 - 32];
 
 void default_registered_handler(Interrupt_Frame *frame) {

@@ -2,9 +2,9 @@
     - Initialize page metadata.
     X Write a page frame allocator.
         X Test this.
-    - Write a GPA or a bump allocator.
-        - Finish memory allocation.
-        - Implement freeing.
+    X Write a GPA or a bump allocator.
+        X Finish memory allocation.
+        X Implement freeing.
         - Test this.
 
 - TagFS
@@ -26,9 +26,9 @@
 - Improvements
     - Tests
         - Some kernel functions may only be used for testing purposes. Maybe we can conditionally compile these so that using them outside of tests will throw a linker error.
-        - Tests can be discovered by searching the elf headers.
-    - warning: ./build/os-for-real.elf has a LOAD segment with RWX permissions
+        - (Hard) Tests can be discovered by searching the elf headers. This will give us the option of writing unit tests for modules in the module itself (although I don't think I want to do that).
     - Make forward defines for files so that order of includes doesn't matter.
+    - warning: ./build/os-for-real.elf has a LOAD segment with RWX permissions
     - Precommit hook for nocommit; for some reason checkout-index isn't working as expected.
     - Add a phys_addr newtype to distinguish between array indices and physical addresses.
 
@@ -38,8 +38,6 @@ Toolchain:
 
 --------------------------------------------------------------------------------
 Kernel:
-- Move gdt out of the bootstrap code.
-- Move stack out of the bootstrap code.
 - PS/2 keyboard driver
 - File system driver
 - ELF parsing
@@ -47,13 +45,7 @@ Kernel:
 - Context switching
 
 --------------------------------------------------------------------------------
-Build scripts:
-- Test script
-
---------------------------------------------------------------------------------
 Misc/low priority:
 - Reduce build times of interrupt handlers.
-- Move gdt out of bootstrap.
-- Move stack out of bootstrap.
 
 --------------------------------------------------------------------------------

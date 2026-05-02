@@ -1,6 +1,4 @@
-#define PORT 0x3f8          // COM1
-
-static bool serial_init() {
+bool serial_init() {
    out_8(PORT + 1, 0x00);    // Disable all interrupts
    out_8(PORT + 3, 0x80);    // Enable DLAB (set baud rate divisor)
    out_8(PORT + 0, 0x03);    // Set divisor to 3 (lo byte) 38400 baud

@@ -3,8 +3,6 @@
 
 extern uint32_t page_directory[1024];
 
-#define PAGE_SIZE 4096
-#define MAX_KERNEL_SIZE 8 * MiB
 #define RESERVED_PHYS 10 * MiB
 
 uint32_t ALIGN(PAGE_SIZE) pfa_page_tables[254][1024] = {0};
