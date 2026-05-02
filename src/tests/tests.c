@@ -33,10 +33,10 @@ bool test_page_frame_allocator_commit_one_page() {
     pfa_commit_page(virt);
 
     size_t page_tables_index = mapped_virt_to_pfa_tables_index(virt);
-    size_t page_table_phys = pfa_tables_index_to_table_phys(page_tables_index);
+    Phys_Addr page_table_phys = pfa_tables_index_to_table_phys(page_tables_index);
     size_t page_table_entry = mapped_virt_to_page_table_entry(virt);
     size_t page_directory_entry = mapped_virt_to_page_directory_entry(virt);
-    TEST_ASSERT(page_directory[page_directory_entry] == ((size_t)page_table_phys | 0x27));
+    TEST_ASSERT(page_directory[page_directory_entry] == ((size_t)page_table_phys.value | 0x27));
     TEST_ASSERT(pfa_page_tables[page_tables_index][page_table_entry] == 0xa00027);
 
     TEST_ASSERT(pfa_page_bitmap[0] == 0x00000001);
@@ -89,19 +89,19 @@ bool test_page_frame_allocator_can_commit_multiple_pages() {
     pfa_commit_page(virt3);
 
     size_t low_page_tables_index = mapped_virt_to_pfa_tables_index(virt1);
-    size_t low_page_table_phys = pfa_tables_index_to_table_phys(low_page_tables_index);
+    Phys_Addr low_page_table_phys = pfa_tables_index_to_table_phys(low_page_tables_index);
     size_t page_table_entry1 = mapped_virt_to_page_table_entry(virt1);
     size_t page_table_entry2 = mapped_virt_to_page_table_entry(virt2);
     size_t low_page_directory_entry = mapped_virt_to_page_directory_entry(virt1);
-    TEST_ASSERT(page_directory[low_page_directory_entry] == ((size_t)low_page_table_phys | 0x27));
+    TEST_ASSERT(page_directory[low_page_directory_entry] == ((size_t)low_page_table_phys.value | 0x27));
     TEST_ASSERT(pfa_page_tables[low_page_tables_index][page_table_entry1] == 0xa00027);
     TEST_ASSERT(pfa_page_tables[low_page_tables_index][page_table_entry2] == 0xa01027);
 
     size_t high_page_tables_index = mapped_virt_to_pfa_tables_index(virt3);
-    size_t high_page_table_phys = pfa_tables_index_to_table_phys(high_page_tables_index);
+    Phys_Addr high_page_table_phys = pfa_tables_index_to_table_phys(high_page_tables_index);
     size_t page_table_entry3 = mapped_virt_to_page_table_entry(virt3);
     size_t high_page_directory_entry = mapped_virt_to_page_directory_entry(virt3);
-    TEST_ASSERT(page_directory[high_page_directory_entry] == ((size_t)high_page_table_phys | 0x27));
+    TEST_ASSERT(page_directory[high_page_directory_entry] == ((size_t)high_page_table_phys.value | 0x27));
     TEST_ASSERT(pfa_page_tables[high_page_tables_index][page_table_entry3] == 0xa02027);
 
     TEST_ASSERT(pfa_page_bitmap[0] == 0x00000007);

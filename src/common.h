@@ -24,3 +24,6 @@
 // Shared constants.
 #define PAGE_SIZE 4096
 #define MAX_KERNEL_SIZE 8 * MiB
+
+// Shared types.
+typedef struct {uint32_t value;} Phys_Addr; // Strongly typed physical address

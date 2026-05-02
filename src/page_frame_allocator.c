@@ -31,14 +31,16 @@ void *pfa_tables_index_to_mapped_virt(size_t index) {
     return (void *)(index * PAGE_SIZE * 1024 + page_virt_base);
 }
 
-size_t pfa_tables_index_to_table_phys(size_t index) {
+Phys_Addr pfa_tables_index_to_table_phys(size_t index) {
     ASSERT(index < ARRAY_LEN(pfa_page_tables), "Index too large.");
     size_t pfa_table_virt = (size_t)&pfa_page_tables[index];
     ASSERT(
         pfa_table_virt >= (size_t)__kernel_start && pfa_table_virt < (size_t)__kernel_end,
         "Virtual address should be in the kernel virtual address space."
     );
-    return pfa_table_virt - ((size_t)__kernel_start - (size_t)__kernel_phys_start);
+    return (Phys_Addr){
+        pfa_table_virt - ((uint32_t)__kernel_start - (uint32_t)__kernel_phys_start)
+    };
 }
 
 size_t mapped_virt_to_page_directory_entry(void *virt) {
@@ -73,8 +75,8 @@ bool pfa_commit_page(void *virt_addr) {
     size_t page_directory_entry = mapped_virt_to_page_directory_entry(virt_addr);
     size_t page_table_entry = mapped_virt_to_page_table_entry(virt_addr);
     size_t pfa_page_tables_index = mapped_virt_to_pfa_tables_index(virt_addr);
-    size_t page_table_phys = pfa_tables_index_to_table_phys(pfa_page_tables_index);
-    page_directory[page_directory_entry] = page_table_phys |
+    Phys_Addr page_table_phys = pfa_tables_index_to_table_phys(pfa_page_tables_index);
+    page_directory[page_directory_entry] = page_table_phys.value |
         PAGE_DIR_PRESENT | PAGE_DIR_RW | PAGE_DIR_ACCESS_ALL | PAGE_DIR_ACCESSED;
     pfa_page_tables[pfa_page_tables_index][page_table_entry] = page_frame |
         PAGE_TABLE_PRESENT | PAGE_TABLE_RW | PAGE_TABLE_ACCESS_ALL | PAGE_TABLE_ACCESSED;

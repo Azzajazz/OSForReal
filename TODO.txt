@@ -27,10 +27,8 @@
     - Tests
         - Some kernel functions may only be used for testing purposes. Maybe we can conditionally compile these so that using them outside of tests will throw a linker error.
         - (Hard) Tests can be discovered by searching the elf headers. This will give us the option of writing unit tests for modules in the module itself (although I don't think I want to do that).
-    - Make forward defines for files so that order of includes doesn't matter.
     - warning: ./build/os-for-real.elf has a LOAD segment with RWX permissions
     - Precommit hook for nocommit; for some reason checkout-index isn't working as expected.
-    - Add a phys_addr newtype to distinguish between array indices and physical addresses.
 
 --------------------------------------------------------------------------------
 Toolchain:

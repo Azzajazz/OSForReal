@@ -56,24 +56,24 @@ BOOT_FN void bootstrap(Multiboot_Info *boot_info) {
 
     size_t virt_addr = 0;
     page_directory[virt_addr >> 22] = (uint32_t)low_page_table | page_directory_flags;
-    for (size_t phys_addr = 0; phys_addr < 0x200000; phys_addr += PAGE_SIZE) {
-        low_page_table[(virt_addr >> 12) & 0x3FF] = phys_addr | page_table_flags;
+    for (Phys_Addr phys_addr = {0}; phys_addr.value < 0x200000; phys_addr.value += PAGE_SIZE) {
+        low_page_table[(virt_addr >> 12) & 0x3FF] = phys_addr.value | page_table_flags;
         virt_addr += PAGE_SIZE;
     }
 
-    size_t kernel_phys_mid = (size_t)__kernel_phys_start + 4 * MiB;
+    Phys_Addr kernel_phys_mid = {(uint32_t)__kernel_phys_start + 4 * MiB};
 
     virt_addr = 0xC0000000;
     page_directory[virt_addr >> 22] = (uint32_t)kernel_page_table1 | page_directory_flags;
-    for (size_t phys_addr = (size_t)__kernel_phys_start; phys_addr < kernel_phys_mid; phys_addr += PAGE_SIZE) {
-        kernel_page_table1[(virt_addr >> 12) & 0x3FF] = phys_addr | page_table_flags;
+    for (Phys_Addr phys_addr = {(uint32_t)__kernel_phys_start}; phys_addr.value < kernel_phys_mid.value; phys_addr.value += PAGE_SIZE) {
+        kernel_page_table1[(virt_addr >> 12) & 0x3FF] = phys_addr.value | page_table_flags;
         virt_addr += PAGE_SIZE;
     }
 
     virt_addr = 0xC0400000;
     page_directory[virt_addr >> 22] = (uint32_t)kernel_page_table2 | page_directory_flags;
-    for (size_t phys_addr = kernel_phys_mid; phys_addr < (size_t)__kernel_phys_end; phys_addr += PAGE_SIZE) {
-        kernel_page_table2[(virt_addr >> 12) & 0x3FF] = phys_addr | page_table_flags;
+    for (Phys_Addr phys_addr = kernel_phys_mid; phys_addr.value < (uint32_t)__kernel_phys_end; phys_addr.value += PAGE_SIZE) {
+        kernel_page_table2[(virt_addr >> 12) & 0x3FF] = phys_addr.value | page_table_flags;
         virt_addr += PAGE_SIZE;
     }
 
