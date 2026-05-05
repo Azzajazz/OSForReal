@@ -15,4 +15,6 @@ then
     binary="os-for-real-test"
 fi
 
-qemu-system-i386 -nographic -kernel build/$binary $extra_flags
+qemu-system-i386 -nographic \
+    -kernel build/$binary \
+    $extra_flags

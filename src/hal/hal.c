@@ -2,4 +2,4 @@
 #include "serial.c"
 #include "pic.c"
 #include "interrupts.c"
-//#include "paging.c"
+#include "pci.c"

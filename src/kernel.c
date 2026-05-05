@@ -67,17 +67,30 @@ void kernel_main(Multiboot_Info *boot_info) {
     fmt_print("kernel_start: %x\n", (uint32_t)__kernel_start);
     fmt_print("kernel_end: %x\n", (uint32_t)__kernel_end);
 
-    int *some_memory = memory_allocate(2000 * sizeof(int));
-    int *some_more_memory = memory_allocate(sizeof(*some_more_memory));
-    *some_memory = 5;
-    *some_more_memory = 6;
-    memory_free(some_memory);
-    memory_free(some_more_memory);
-    fmt_print("free_segments_head->next: %x\n", free_segments_head->next);
-    fmt_print("free_segments_head->length: %u\n", free_segments_head->length);
-    
-    // @FIXME: Assert that the multiboot magic number is correct.
-    // ASSERT(boot_info->flags & (1 << 6), "Boot info mmap is not valid.");
+    fmt_print("\n");
+    uint16_t bus = 0;
+    uint16_t device = 1;
+    uint16_t function = 0;
+    uint32_t header0 = pci_read_register(bus, device, function, 0);
+    uint16_t vendor_id = (uint16_t)header0;
+    uint16_t device_id = header0 >> 16;
+    fmt_print("bus: %hu, device: %hhu\n", bus, device);
+    fmt_print("vendor_id: %hx, device_id: %hx\n", vendor_id, device_id);
+    uint32_t header2 = pci_read_register(bus, device, function, 8);
+    uint8_t class_code = (header2 >> 24) & 0xFF;
+    uint8_t subclass = (header2 >> 16) & 0xFF;
+    uint8_t prog_if = (header2 >> 8) & 0xFF;
+    uint8_t revision_id = header2 & 0xFF;
+    fmt_print("class_code: %hhx, subclass: %hhx\n", class_code, subclass);
+    fmt_print("prog_if: %hhx, revision_id: %hhx\n", prog_if, revision_id);
+    uint32_t header3 = pci_read_register(bus, device, function, 12);
+    uint8_t bist = (header3 >> 24) & 0xFF;
+    uint8_t header_type = (header3 >> 16) & 0xFF;
+    uint8_t latency_timer = (header3 >> 8) & 0xFF;
+    uint8_t cache_line = header3 & 0xFF;
+    fmt_print("bist: %hhx, header_type: %hhx\n", bist, header_type);
+    fmt_print("latency_timer: %hhx, cache_line: %hhx\n", latency_timer, cache_line);
 
+    
     for(;;);
 }

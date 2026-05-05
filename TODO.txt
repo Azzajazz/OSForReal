@@ -7,6 +7,12 @@
         X Implement freeing.
         X Test this.
 
+- PCI
+    X Print vendor ids of existing devices.
+    - Make a driver hookup mechanism for PCI devices.
+        - I think we will need ELF parsing for this, one way or another.
+    - Write a driver for something :)
+
 - TagFS
     - Expand on docs as needed.
     X Write tfsfmt utility.
@@ -29,6 +35,7 @@
         - (Hard) Tests can be discovered by searching the elf headers. This will give us the option of writing unit tests for modules in the module itself (although I don't think I want to do that).
     - warning: ./build/os-for-real.elf has a LOAD segment with RWX permissions
     - Precommit hook for nocommit; for some reason checkout-index isn't working as expected.
+    - Use QEMU port 0xE9 for the debug console instead of serial output (no baud rate throttling).
 
 --------------------------------------------------------------------------------
 Toolchain:
