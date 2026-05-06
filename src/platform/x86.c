@@ -16,6 +16,24 @@ uint8_t in_8(uint16_t port) {
     return data;
 }
 
+void out_16(uint16_t port, uint16_t data) {
+    asm volatile (
+        "out dx, ax"
+        :
+        : "d" (port), "a" (data)
+    );
+}
+
+uint16_t in_16(uint16_t port) {
+    uint16_t data;
+    asm volatile  (
+        "in ax, dx"
+        : "=a" (data)
+        : "d" (port)
+    );
+    return data;
+}
+
 void out_32(uint16_t port, uint32_t data) {
     asm volatile (
         "out dx, eax"

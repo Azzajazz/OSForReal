@@ -44,6 +44,8 @@ void kernel_init(Multiboot_Info *boot_info) {
     ASSERT(initted, "Page frame allocation initialization failed.");
     initted = memory_init();
     ASSERT(initted, "Memory initialization failed.");
+    initted = ata_init();
+    ASSERT(initted, "ATA initialization failed.");
 }
 
 void kernel_main(Multiboot_Info *boot_info) {
@@ -70,7 +72,7 @@ void kernel_main(Multiboot_Info *boot_info) {
     fmt_print("\n");
     uint16_t bus = 0;
     uint16_t device = 1;
-    uint16_t function = 0;
+    uint16_t function = 1;
     uint32_t header0 = pci_read_register(bus, device, function, 0);
     uint16_t vendor_id = (uint16_t)header0;
     uint16_t device_id = header0 >> 16;
@@ -90,7 +92,16 @@ void kernel_main(Multiboot_Info *boot_info) {
     uint8_t cache_line = header3 & 0xFF;
     fmt_print("bist: %hhx, header_type: %hhx\n", bist, header_type);
     fmt_print("latency_timer: %hhx, cache_line: %hhx\n", latency_timer, cache_line);
-
+    uint32_t bar0 = pci_read_register(bus, device, function, 16);
+    uint32_t bar1 = pci_read_register(bus, device, function, 20);
+    uint32_t bar2 = pci_read_register(bus, device, function, 24);
+    uint32_t bar3 = pci_read_register(bus, device, function, 28);
+    uint32_t bar4 = pci_read_register(bus, device, function, 32);
+    fmt_print("bar0: %x\n", bar0);
+    fmt_print("bar1: %x\n", bar1);
+    fmt_print("bar2: %x\n", bar2);
+    fmt_print("bar3: %x\n", bar3);
+    fmt_print("bar4: %x\n", bar4);
     
     for(;;);
 }

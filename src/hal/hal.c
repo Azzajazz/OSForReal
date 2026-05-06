@@ -3,3 +3,4 @@
 #include "pic.c"
 #include "interrupts.c"
 #include "pci.c"
+#include "ata.c"
