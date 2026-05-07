@@ -1,37 +1,18 @@
 // Ports.
-// @TODO: These are hardcoded because qemu has them set up that way,
-// but in the real world these could be different. Look at the PCI headers
-// to determine the I/O base and Command base.
-#define ATA_PRIM_DATA 0x1F0
-#define ATA_PRIM_ERROR 0x1F1
-#define ATA_PRIM_FEATURES 0x1F1
-#define ATA_PRIM_SECTOR_COUNT 0x1F2
-#define ATA_PRIM_LBALOW_OR_SECTORNUM 0x1F3
-#define ATA_PRIM_LBAMID_OR_CYLINDERLOW 0x1F4
-#define ATA_PRIM_LBAHIGH_OR_CYLINDERHIGH 0x1F5
-#define ATA_PRIM_DRIVE_OR_HEAD 0x1F6
-#define ATA_PRIM_STATUS 0x1F7
-#define ATA_PRIM_COMMAND 0x1F7
+#define ATA_DATA(bus) ide_channels[bus].io_base + 0
+#define ATA_ERROR(bus) ide_channels[bus].io_base + 1
+#define ATA_FEATURES(bus) ide_channels[bus].io_base + 1
+#define ATA_SECTOR_COUNT(bus) ide_channels[bus].io_base + 2
+#define ATA_LBALOW_OR_SECTORNUM(bus) ide_channels[bus].io_base + 3
+#define ATA_LBAMID_OR_CYLINDERLOW(bus) ide_channels[bus].io_base + 4
+#define ATA_LBAHIGH_OR_CYLINDERHIGH(bus) ide_channels[bus].io_base + 5
+#define ATA_DRIVE_OR_HEAD(bus) ide_channels[bus].io_base + 6
+#define ATA_STATUS(bus) ide_channels[bus].io_base + 7
+#define ATA_COMMAND(bus) ide_channels[bus].io_base + 7
 
-#define ATA_PRIM_ALT_STATUS 0x3F6
-#define ATA_PRIM_DEV_CONTROL 0x3F6
-#define ATA_PRIM_DRIVE_ADDRESS 0x3F7
-
-#define ATA_SND_DATA 0x170
-#define ATA_SND_ERROR 0x171
-#define ATA_SND_FEATURES 0x171
-#define ATA_SND_SECTOR_COUNT 0x172
-#define ATA_SND_LBALOW_OR_SECTORNUM 0x173
-#define ATA_SND_LBAMID_OR_CYLINDERLOW 0x174
-#define ATA_SND_LBAHIGH_OR_CYLINDERHIGH 0x175
-#define ATA_SND_DRIVE_OR_HEAD 0x176
-#define ATA_SND_STATUS 0x177
-#define ATA_SND_COMMAND 0x177
-
-#define ATA_SND_ALT_STATUS 0x376
-#define ATA_SND_DEV_CONTROL 0x376
-#define ATA_SND_DRIVE_ADDRESS 0x377
-
+#define ATA_ALT_STATUS(bus) ide_channels[bus].control_base + 0
+#define ATA_DEV_CONTROL(bus) ide_channels[bus].control_base + 0
+#define ATA_DRIVE_ADDRESS(bus) ide_channels[bus].control_base + 1
 
 // Bitmasks for ATA registers.
 #define ATA_ERROR_NO_ADDRESS_MARK (1 << 0)
@@ -45,7 +26,7 @@
 
 #define ATA_DRIVE_OR_HEAD_DRV0 (0 << 4)
 #define ATA_DRIVE_OR_HEAD_DRV1 (1 << 4)
-#define ATA_DRIVE_OR_HEAD_CHS (1 << 6)
+#define ATA_DRIVE_OR_HEAD_LBA (1 << 6)
 
 #define ATA_STATUS_ERROR (1 << 0)
 #define ATA_STATUS_INDEX (1 << 1)
@@ -68,82 +49,218 @@
 
 // ATA Commands.
 #define ATA_COMMAND_IDENTIFY 0xEC
+#define ATA_COMMAND_READ_SECTORS 0x20
 
 typedef enum {
-    ATA_BUS_PRIM,
-    ATA_BUS_SND,
-} ATA_Bus;
+    IDE_BUS_PRIM,
+    IDE_BUS_SND,
+} IDE_Bus_ID;
 
-#define ata_get_bus_port(bus, port_name) \
-    ({ \
-        uint16_t port = 0; \
-        switch (bus) { \
-            case ATA_BUS_PRIM: { \
-                port = ATA_PRIM_##port_name; \
-            } break; \
-            case ATA_BUS_SND: { \
-                port = ATA_SND_##port_name; \
-            } break; \
-            default: { \
-                ASSERT(false, "Invalid bus."); \
-            } break; \
-        } \
-        port; \
-    })
+typedef struct {
+    uint16_t io_base;
+    uint16_t control_base;
+    uint16_t bus_master;
+} IDE_Channel_Info;
 
+typedef enum {
+    DRIVE_TYPE_ATA,
+    // @TODO: Need SATA, ATAPI, etc.
+    DRIVE_TYPE_UNKNOWN,
+} IDE_Drive_Type;
 
-void ata_drive_select(ATA_Bus bus, uint8_t drive) {
+// @TODO: Probably don't need this.
+typedef struct {
+    bool missing;
+    IDE_Drive_Type type;
+    uint8_t udma_mode;
+    uint32_t lba28_addressable_sector_count; // 0 if lba28 is not supported.
+    uint64_t lba48_addressable_sector_count; // 0 if lba48 is not supported.
+} IDE_Drive_Info;
+
+IDE_Channel_Info ide_channels[2] = {0};
+IDE_Drive_Info ide_drives[2][2] = {0};
+
+void ata_select_drive(IDE_Bus_ID bus, uint8_t drive) {
     ASSERT(drive == 0 || drive == 1, "Invalid drive number.");
-    uint8_t alt_status = ATA_STATUS_BUSY | ATA_STATUS_DRQ;
-
-    // Make sure the busy and DRQ bits are clear for this drive before switching.
-    while ((alt_status & (ATA_STATUS_BUSY | ATA_STATUS_DRQ)) != 0) {
-        uint16_t alt_status_port = ata_get_bus_port(bus, ALT_STATUS);
-        alt_status = in_8(alt_status_port);
+    out_8(ATA_DRIVE_OR_HEAD(bus), 0xA | (drive << 4));
+    // We need to wait 400ns for the drive select to go through. Apparently, each
+    // `in` instruction takes ~100ns, so doing it 4 times (and ignoring the results)
+    // is necessary.
+    // @TODO: Make sure the compiler doesn't optimize this away. That should be the case already,
+    // since the asm block in `in_8` is marked volatile, but I'd like to confirm that.
+    for (int i = 0; i < 4; i++) {
+        in_8(ATA_STATUS(bus));
     }
-
-    uint16_t drive_select_port = ata_get_bus_port(bus, DRIVE_OR_HEAD);
-    out_8(drive_select_port, 0xA | (drive << 4));
 }
 
-bool ata_init() {
-    // Check for floating bus.
-    uint8_t primary_status = in_8(ATA_PRIM_STATUS);
-    uint8_t secondary_status = in_8(ATA_SND_STATUS);
-
-    fmt_print("primary_status: %hhx\n", primary_status);
-    fmt_print("secondary_status: %hhx\n", secondary_status);
-
-    // @TODO: Actually do stuff based on the floating bus results.
-    ASSERT(primary_status != 0xFF, "Illegal value on primary bus.");
-    ASSERT(secondary_status != 0xFF, "Illegal value on secondary bus.");
-
-    // @Note: Exploration only. I just want to see how IDENTIFY works.
-    ata_drive_select(ATA_BUS_PRIM, 0);
-    uint16_t sector_count_port = ata_get_bus_port(ATA_BUS_PRIM, SECTOR_COUNT);
-    out_8(sector_count_port, 0);
-    uint16_t lba_low_port = ata_get_bus_port(ATA_BUS_PRIM, LBALOW_OR_SECTORNUM);
-    out_8(lba_low_port, 0);
-    uint16_t lba_mid_port = ata_get_bus_port(ATA_BUS_PRIM, LBAMID_OR_CYLINDERLOW);
-    out_8(lba_mid_port, 0);
-    uint16_t lba_high_port = ata_get_bus_port(ATA_BUS_PRIM, LBAHIGH_OR_CYLINDERHIGH);
-    out_8(lba_high_port, 0);
-    uint16_t command_port = ata_get_bus_port(ATA_BUS_PRIM, COMMAND);
-    out_8(command_port, ATA_COMMAND_IDENTIFY);
-
-    uint16_t alt_status_port = ata_get_bus_port(ATA_BUS_PRIM, ALT_STATUS);
-    uint8_t alt_status = 0;
-    while ((alt_status & (ATA_STATUS_DRQ | ATA_STATUS_ERROR)) == 0) {
-        alt_status = in_8(alt_status_port);
+bool ide_init(bool pci_native, uint16_t bar0, uint16_t bar1, uint16_t bar2, uint16_t bar3, uint16_t bar4) {
+    UNUSED(bar0);
+    UNUSED(bar1);
+    UNUSED(bar2);
+    UNUSED(bar3);
+    UNUSED(bar4);
+    if (pci_native) {
+        TODO("PCI native mode.");
+    }
+    else {
+        ide_channels[IDE_BUS_PRIM].io_base = 0x1F0;
+        ide_channels[IDE_BUS_PRIM].control_base = 0x3F6;
+        ide_channels[IDE_BUS_SND].io_base = 0x170;
+        ide_channels[IDE_BUS_SND].control_base = 0x376;
     }
 
-    ASSERT((alt_status & ATA_STATUS_ERROR) == 0, "Temporary: Error should not be set.");
-    
+    // Check for floating bus.
+    uint8_t primary_status = in_8(ATA_STATUS(IDE_BUS_PRIM));
+    uint8_t secondary_status = in_8(ATA_STATUS(IDE_BUS_SND));
+    if (primary_status == 0xFF) {
+        // Primary bus has no drives.
+        ide_drives[IDE_BUS_PRIM][0].missing = true;
+        ide_drives[IDE_BUS_PRIM][1].missing = true;
+    }
+    if (secondary_status == 0xFF) {
+        // Secondary bus has no drives.
+        ide_drives[IDE_BUS_SND][0].missing = true;
+        ide_drives[IDE_BUS_SND][1].missing = true;
+    }
+
     uint16_t identify_data[256] = {0};
-    uint16_t data_port = ata_get_bus_port(ATA_BUS_PRIM, DATA);
-    for (size_t i = 0; i < ARRAY_LEN(identify_data); i++) {
-        identify_data[i] = in_16(data_port);
+
+    // Identify the drives.
+    for (size_t bus = 0; bus < 2; bus++) {
+        for (size_t drive = 0; drive < 2; drive++) {
+            if (ide_drives[bus][drive].missing) {
+                continue;
+            }
+
+            ata_select_drive(bus, drive);
+
+            // Poll until BSY and DRQ are clear.
+            uint8_t status = in_8(ATA_STATUS(bus));
+            while (status & (ATA_STATUS_BUSY | ATA_STATUS_DRQ)) {
+                status = in_8(ATA_STATUS(bus));
+            }
+
+            out_8(ATA_SECTOR_COUNT(bus), 0);
+            out_8(ATA_LBALOW_OR_SECTORNUM(bus), 0);
+            out_8(ATA_LBAMID_OR_CYLINDERLOW(bus), 0);
+            out_8(ATA_LBAHIGH_OR_CYLINDERHIGH(bus), 0);
+            out_8(ATA_COMMAND(bus), ATA_COMMAND_IDENTIFY);
+
+            // Poll until ERR and DF are clear. They may be set from the previous
+            // command for a little bit.
+            while (status & (ATA_STATUS_ERROR | ATA_STATUS_DRIVE_FAULT)) {
+                status = in_8(ATA_STATUS(bus));
+            }
+            if (status == 0) {
+                ide_drives[bus][drive].missing = true;
+                continue;
+            }
+
+            // Poll until BSY clears. The status register is meaningless until then.
+            while (status & ATA_STATUS_BUSY) {
+                status = in_8(ATA_STATUS(bus));
+            }
+
+            // @TODO: There's a section on the ATA PIO mode osdev.org page that talks about
+            // identifying non-standard ATAPI devices here. Implement that.
+
+            // Poll until either ERR sets (i.e. there was an error) or DRQ sets
+            // (i.e, the drive is ready for data read).
+            while ((status & (ATA_STATUS_ERROR | ATA_STATUS_DRQ)) == 0) {
+                status = in_8(ATA_STATUS(bus));
+            }
+
+            if (status & ATA_STATUS_ERROR) {
+                // @TODO: Better drive type detection.
+                ide_drives[bus][drive].type = DRIVE_TYPE_UNKNOWN;
+                continue;
+            }
+            else {
+                ide_drives[bus][drive].type = DRIVE_TYPE_ATA;
+            }
+
+            // Read the identify data.
+            for (size_t i = 0; i < ARRAY_LEN(identify_data); i++) {
+                identify_data[i] = in_16(ATA_DATA(bus));
+            }
+
+            uint8_t supported_udma_modes = identify_data[88] & 0xFF;
+            uint8_t active_udma_mode = identify_data[88] >> 8;
+            if (__builtin_clz(supported_udma_modes) < __builtin_clz(active_udma_mode)) {
+                fmt_print("WARNING: The active udma mode is not the maximum supported.\n");
+                fmt_print("  bus: %hhx, drive: %hhx\n", bus, drive);
+                fmt_print("  active bitmask: %hhx, supported bitmask: %hhx\n", active_udma_mode, supported_udma_modes);
+            }
+            ide_drives[bus][drive].udma_mode = __builtin_ffs(active_udma_mode);
+            // @TODO: Check the 80 line on the master drive. That may limit the udma version we can use.
+
+            // @TODO: Unnecessary work here. Ideally we would just do
+            //   *(uint32_t *)&identify_data[60]
+            // but type punning like that is UB. The defined way of doing it
+            // is to use a union to type-cast, but that's pretty clunky.
+            ide_drives[bus][drive].lba28_addressable_sector_count =
+                identify_data[60] | ((uint32_t)identify_data[61] << 16);
+
+            bool supports_lba_48 = (identify_data[83] & (1 << 10)) != 0;
+            if (supports_lba_48) {
+                ide_drives[bus][drive].lba48_addressable_sector_count =
+                    identify_data[100] |
+                    ((uint64_t)identify_data[101] << 16) |
+                    ((uint64_t)identify_data[102] << 32) |
+                    ((uint64_t)identify_data[103] << 48);
+            }
+        }
     }
 
     return true;
+}
+
+uint16_t *ata_read(IDE_Bus_ID bus, uint8_t drive, uint8_t sector_count, uint32_t lba28) {
+    ASSERT(drive == 0 || drive == 1, "Invalid drive number.");
+    ASSERT(sector_count == 1, "Temporary."); // @TODO: Support different sector counts.
+    ASSERT(lba28 <= 0xFFFFFFF, "lba28 can be at most 28 bits.");
+
+    ata_select_drive(bus, drive);
+
+    uint8_t drive_or_head_value = 
+        0xA0 | (drive << 4) | ATA_DRIVE_OR_HEAD_LBA | ((lba28 >> 24) & 0x0F);
+    out_8(ATA_DRIVE_OR_HEAD(bus), drive_or_head_value);
+    out_8(ATA_SECTOR_COUNT(bus), sector_count);
+    out_8(ATA_LBALOW_OR_SECTORNUM(bus), lba28 & 0xFF);
+    out_8(ATA_LBAMID_OR_CYLINDERLOW(bus), (lba28 >> 8) & 0xFF);
+    out_8(ATA_LBAHIGH_OR_CYLINDERHIGH(bus), (lba28 >> 16) & 0xFF);
+    out_8(ATA_COMMAND(bus), ATA_COMMAND_READ_SECTORS);
+    
+    // Poll until ERR and DF are clear. They may be set from the previous
+    // command for a little bit.
+    uint8_t status = in_8(ATA_STATUS(bus));
+    /* @TODO: I think this is wrong. What if the command already finished with an error?
+    while (status & (ATA_STATUS_ERROR | ATA_STATUS_DRIVE_FAULT)) {
+        status = in_8(ATA_STATUS(bus));
+    }
+    */
+
+    // Poll until BSY clears. The status register is meaningless until then.
+    while (status & ATA_STATUS_BUSY) {
+        status = in_8(ATA_STATUS(bus));
+    }
+
+    // Poll until DRQ is set (i.e, there is data to be read) or ERR/DF is set
+    // (i.e, something went wrong).
+    while ((status & (ATA_STATUS_DRQ | ATA_STATUS_ERROR | ATA_STATUS_DRIVE_FAULT)) == 0) {
+        status = in_8(ATA_STATUS(bus));
+    }
+    if (status & ATA_STATUS_ERROR) {
+        fmt_print("error: %hhx\n", in_8(ATA_ERROR(bus)));
+    }
+    ASSERT((status & (ATA_STATUS_ERROR | ATA_STATUS_DRIVE_FAULT)) == 0, "Error should not occur.");
+
+    // @TODO: This should be allocated outside this function, probably.
+    // The caller should be responsible for making enough space, which means that we
+    // need to expose the sector size of the disks somehow :)
+    uint16_t *data = memory_allocate(256 * sizeof(*data)); 
+    for (size_t i = 0; i < 256; i++) {
+        data[i] = in_16(ATA_DATA(bus));
+    }
+    return data;
 }

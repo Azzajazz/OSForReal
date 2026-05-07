@@ -44,7 +44,8 @@ void kernel_init(Multiboot_Info *boot_info) {
     ASSERT(initted, "Page frame allocation initialization failed.");
     initted = memory_init();
     ASSERT(initted, "Memory initialization failed.");
-    initted = ata_init();
+    // @TODO: Move this to pci_init() and actually find out the operating mode of the IDE.
+    initted = ide_init(false, 0, 0, 0, 0, 0);
     ASSERT(initted, "ATA initialization failed.");
 }
 
@@ -102,6 +103,11 @@ void kernel_main(Multiboot_Info *boot_info) {
     fmt_print("bar2: %x\n", bar2);
     fmt_print("bar3: %x\n", bar3);
     fmt_print("bar4: %x\n", bar4);
+
+    uint16_t *data = ata_read(IDE_BUS_PRIM, 0, 1, 0);
+    for (size_t i = 0; i < 256; i++) {
+        fmt_print("%hx\n", data[i]);
+    }
     
     for(;;);
 }
