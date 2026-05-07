@@ -24,5 +24,5 @@ truncate -s 512000 ./devices/hard_drive
 
 qemu-system-i386 -nographic \
     -kernel build/$binary \
-    -hda ./devices/hard_drive \
+    -drive format=raw,file=./devices/hard_drive \
     $extra_flags
