@@ -13,12 +13,18 @@ bool memory_init() {
     return true;
 }
 
-size_t align_forward(size_t size) {
-    return (size + sizeof(size_t) - 1) & ~(sizeof(size_t) - 1);
+size_t align_backwards(size_t size, size_t alignment) {
+    ASSERT(__builtin_popcount(alignment) == 1, "alignment is not a power of 2");
+    return size & ~(alignment - 1);
+}
+
+size_t align_forward(size_t size, size_t alignment) {
+    ASSERT(__builtin_popcount(alignment) == 1, "alignment is not a power of 2");
+    return (size + alignment - 1) & ~(alignment - 1);
 }
 
 void *memory_allocate(size_t size) {
-    size_t true_size = align_forward(size + sizeof(size_t));
+    size_t true_size = align_forward(size + sizeof(size_t), sizeof(size_t));
 
     if (free_segments_head == 0) {
         bool success = pfa_commit_page(next_page_virt_addr);

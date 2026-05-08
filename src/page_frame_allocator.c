@@ -12,9 +12,46 @@ uint32_t ALIGN(PAGE_SIZE) pfa_page_tables[254][1024] = {0};
 //  / 32 (bits per entry)
 uint32_t pfa_page_bitmap[32704] = {0};
 
-// @TODO: Mark some pages in the bitmap as used based on multiboot mmap info.
 bool pfa_init(Multiboot_Info *boot_info) {
-    UNUSED(boot_info);
+    // Mark pages that are not available as general purpose RAM as reserved.
+    MMap_Segment *segment = (MMap_Segment *)boot_info->mmap_addr;
+    size_t end_of_last_segment = 0;
+    size_t bytes_traversed = 0;
+    while (bytes_traversed < boot_info->mmap_length) {
+        // Some areas of memory aren't mentioned in the mmap segments, so if there's
+        // an area between the end of the last segment and the beginning of the next,
+        // we need to mark that area as reserved.
+        size_t area_end = align_forward((size_t)segment->base_addr, PAGE_SIZE);
+        if (area_end > RESERVED_PHYS) {
+            size_t area_start = align_backwards(end_of_last_segment, PAGE_SIZE);
+            if (area_start < RESERVED_PHYS) area_start = RESERVED_PHYS;
+
+            for (size_t addr = area_start; addr < area_end; addr += PAGE_SIZE) {
+                size_t page_bitmap_index = (addr - RESERVED_PHYS) / PAGE_SIZE / 32;
+                size_t page_bitmap_bit_index = (addr - RESERVED_PHYS) / PAGE_SIZE % 32;
+                pfa_page_bitmap[page_bitmap_index] |= 1 << page_bitmap_bit_index;
+            }
+        }
+
+        if (segment->type != 1) {
+            size_t area_end = align_forward((size_t)(segment->base_addr + segment->length), PAGE_SIZE);
+            if (area_end > RESERVED_PHYS) {
+                size_t area_start = align_backwards((size_t)segment->base_addr, PAGE_SIZE);
+                if (area_start < RESERVED_PHYS) area_start = RESERVED_PHYS;
+
+                for (size_t addr = area_start; addr < area_end; addr += PAGE_SIZE) {
+                    size_t page_bitmap_index = (addr - RESERVED_PHYS) / PAGE_SIZE / 32;
+                    size_t page_bitmap_bit_index = (addr - RESERVED_PHYS) / PAGE_SIZE % 32;
+                    pfa_page_bitmap[page_bitmap_index] |= 1 << page_bitmap_bit_index;
+                }
+            }
+        }
+
+        bytes_traversed += segment->size + 4;
+        end_of_last_segment = (size_t)(segment->base_addr + segment->length);
+        segment = (MMap_Segment*)((uint8_t*)segment + segment->size + 4);
+    }
+
     return true;
 }
 
