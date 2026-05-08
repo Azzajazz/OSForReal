@@ -93,18 +93,23 @@ void ata_select_drive(IDE_Bus_ID bus, uint8_t drive) {
     }
 }
 
-bool ide_init(bool pci_native, uint16_t bar0, uint16_t bar1, uint16_t bar2, uint16_t bar3, uint16_t bar4) {
+bool ide_init(bool primary_pci_native, bool secondary_pci_native, uint16_t bar0, uint16_t bar1, uint16_t bar2, uint16_t bar3, uint16_t bar4) {
     UNUSED(bar0);
     UNUSED(bar1);
     UNUSED(bar2);
     UNUSED(bar3);
     UNUSED(bar4);
-    if (pci_native) {
+    if (primary_pci_native) {
         TODO("PCI native mode.");
     }
     else {
         ide_channels[IDE_BUS_PRIM].io_base = 0x1F0;
         ide_channels[IDE_BUS_PRIM].control_base = 0x3F6;
+    }
+    if (secondary_pci_native) {
+        TODO("PCI native mode.");
+    }
+    else {
         ide_channels[IDE_BUS_SND].io_base = 0x170;
         ide_channels[IDE_BUS_SND].control_base = 0x376;
     }
@@ -194,10 +199,6 @@ bool ide_init(bool pci_native, uint16_t bar0, uint16_t bar1, uint16_t bar2, uint
             ide_drives[bus][drive].udma_mode = __builtin_ffs(active_udma_mode);
             // @TODO: Check the 80 line on the master drive. That may limit the udma version we can use.
 
-            // @TODO: Unnecessary work here. Ideally we would just do
-            //   *(uint32_t *)&identify_data[60]
-            // but type punning like that is UB. The defined way of doing it
-            // is to use a union to type-cast, but that's pretty clunky.
             ide_drives[bus][drive].lba28_addressable_sector_count =
                 identify_data[60] | ((uint32_t)identify_data[61] << 16);
 

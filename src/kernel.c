@@ -44,9 +44,8 @@ void kernel_init(Multiboot_Info *boot_info) {
     ASSERT(initted, "Page frame allocation initialization failed.");
     initted = memory_init();
     ASSERT(initted, "Memory initialization failed.");
-    // @TODO: Move this to pci_init() and actually find out the operating mode of the IDE.
-    initted = ide_init(false, 0, 0, 0, 0, 0);
-    ASSERT(initted, "ATA initialization failed.");
+    initted = pci_init();
+    ASSERT(initted, "PCI initialization failed.");
 }
 
 void kernel_main(Multiboot_Info *boot_info) {
