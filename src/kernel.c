@@ -103,7 +103,8 @@ void kernel_main(Multiboot_Info *boot_info) {
     fmt_print("bar3: %x\n", bar3);
     fmt_print("bar4: %x\n", bar4);
 
-    uint16_t *data = ata_read(IDE_BUS_PRIM, 0, 1, 0);
+    uint8_t *data = memory_allocate(512);
+    ata_read(IDE_BUS_PRIM, 0, 1, 0, data, 512);
     for (size_t i = 0; i < 256; i++) {
         fmt_print("%hx\n", data[i]);
     }

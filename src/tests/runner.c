@@ -15,8 +15,8 @@ typedef struct {
     void (*setup)(void);
     // Called after running a test in this suite.
     void (*cleanup)(void);
-    char *name;
 
+    char *name;
     // @TODO: This uses static memory, which wastes a lot of space and increases the size of the kernel.
     // I can imagine having tests use dynamic arrays by default, and be able to specify
     // that we want a suite to use static memory instead (needed, e.g, when testing the allocators themselves).

@@ -51,32 +51,6 @@
 #define ATA_COMMAND_IDENTIFY 0xEC
 #define ATA_COMMAND_READ_SECTORS 0x20
 
-typedef enum {
-    IDE_BUS_PRIM,
-    IDE_BUS_SND,
-} IDE_Bus_ID;
-
-typedef struct {
-    uint16_t io_base;
-    uint16_t control_base;
-    uint16_t bus_master;
-} IDE_Channel_Info;
-
-typedef enum {
-    DRIVE_TYPE_ATA,
-    // @TODO: Need SATA, ATAPI, etc.
-    DRIVE_TYPE_UNKNOWN,
-} IDE_Drive_Type;
-
-// @TODO: Probably don't need this.
-typedef struct {
-    bool missing;
-    IDE_Drive_Type type;
-    uint8_t udma_mode;
-    uint32_t lba28_addressable_sector_count; // 0 if lba28 is not supported.
-    uint64_t lba48_addressable_sector_count; // 0 if lba48 is not supported.
-} IDE_Drive_Info;
-
 IDE_Channel_Info ide_channels[2] = {0};
 IDE_Drive_Info ide_drives[2][2] = {0};
 
@@ -216,9 +190,13 @@ bool ide_init(bool primary_pci_native, bool secondary_pci_native, uint16_t bar0,
     return true;
 }
 
-uint16_t *ata_read(IDE_Bus_ID bus, uint8_t drive, uint8_t sector_count, uint32_t lba28) {
+// @TODO: Expose the sector size to callers somehow.
+void ata_read(IDE_Bus_ID bus, uint8_t drive, uint8_t sector_count, uint32_t lba28, void *buffer, size_t buffer_length) {
+    // @TODO: Make sure buffer_length == sector_size * sector_count, or even better make one of those parameters depend on the other.
+    // I don't know how to get the sector size yet, so I'm just keeping both params here.
     ASSERT(drive == 0 || drive == 1, "Invalid drive number.");
     ASSERT(sector_count == 1, "Temporary."); // @TODO: Support different sector counts.
+    ASSERT(buffer_length == 512, "Temporary."); // @TODO: Support different sector counts.
     ASSERT(lba28 <= 0xFFFFFFF, "lba28 can be at most 28 bits.");
 
     ata_select_drive(bus, drive);
@@ -256,12 +234,10 @@ uint16_t *ata_read(IDE_Bus_ID bus, uint8_t drive, uint8_t sector_count, uint32_t
     }
     ASSERT((status & (ATA_STATUS_ERROR | ATA_STATUS_DRIVE_FAULT)) == 0, "Error should not occur.");
 
-    // @TODO: This should be allocated outside this function, probably.
-    // The caller should be responsible for making enough space, which means that we
-    // need to expose the sector size of the disks somehow :)
-    uint16_t *data = memory_allocate(256 * sizeof(*data)); 
+    // @TODO: Alignment applies here; we should make sure that buffer is uint16_t aligned.
+    // This requires adding an alignment parameter to memory_allocate.
+    uint16_t *buffer_16 = (uint16_t *)buffer;
     for (size_t i = 0; i < 256; i++) {
-        data[i] = in_16(ATA_DATA(bus));
+        buffer_16[i] = in_16(ATA_DATA(bus));
     }
-    return data;
 }
