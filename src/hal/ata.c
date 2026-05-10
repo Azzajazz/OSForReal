@@ -60,8 +60,6 @@ void ata_select_drive(IDE_Bus_ID bus, uint8_t drive) {
     // We need to wait 400ns for the drive select to go through. Apparently, each
     // `in` instruction takes ~100ns, so doing it 4 times (and ignoring the results)
     // is necessary.
-    // @TODO: Make sure the compiler doesn't optimize this away. That should be the case already,
-    // since the asm block in `in_8` is marked volatile, but I'd like to confirm that.
     for (int i = 0; i < 4; i++) {
         in_8(ATA_STATUS(bus));
     }
