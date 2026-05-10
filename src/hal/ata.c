@@ -54,7 +54,7 @@
 IDE_Channel_Info ide_channels[2] = {0};
 IDE_Drive_Info ide_drives[2][2] = {0};
 
-void ata_select_drive(IDE_Bus_ID bus, uint8_t drive) {
+void ide_select_drive(IDE_Bus_ID bus, uint8_t drive) {
     ASSERT(drive == 0 || drive == 1, "Invalid drive number.");
     out_8(ATA_DRIVE_OR_HEAD(bus), 0xA | (drive << 4));
     // We need to wait 400ns for the drive select to go through. Apparently, each
@@ -109,7 +109,7 @@ bool ide_init(bool primary_pci_native, bool secondary_pci_native, uint16_t bar0,
                 continue;
             }
 
-            ata_select_drive(bus, drive);
+            ide_select_drive(bus, drive);
 
             // Poll until BSY and DRQ are clear.
             uint8_t status = in_8(ATA_STATUS(bus));
@@ -123,11 +123,6 @@ bool ide_init(bool primary_pci_native, bool secondary_pci_native, uint16_t bar0,
             out_8(ATA_LBAHIGH_OR_CYLINDERHIGH(bus), 0);
             out_8(ATA_COMMAND(bus), ATA_COMMAND_IDENTIFY);
 
-            // Poll until ERR and DF are clear. They may be set from the previous
-            // command for a little bit.
-            while (status & (ATA_STATUS_ERROR | ATA_STATUS_DRIVE_FAULT)) {
-                status = in_8(ATA_STATUS(bus));
-            }
             if (status == 0) {
                 ide_drives[bus][drive].missing = true;
                 continue;
@@ -188,16 +183,14 @@ bool ide_init(bool primary_pci_native, bool secondary_pci_native, uint16_t bar0,
     return true;
 }
 
-// @TODO: Expose the sector size to callers somehow.
 void ata_read(IDE_Bus_ID bus, uint8_t drive, uint8_t sector_count, uint32_t lba28, void *buffer, size_t buffer_length) {
-    // @TODO: Make sure buffer_length == sector_size * sector_count, or even better make one of those parameters depend on the other.
-    // I don't know how to get the sector size yet, so I'm just keeping both params here.
+    // Sector size is assumed to be 512 bytes.
     ASSERT(drive == 0 || drive == 1, "Invalid drive number.");
     ASSERT(sector_count == 1, "Temporary."); // @TODO: Support different sector counts.
-    ASSERT(buffer_length == 512, "Temporary."); // @TODO: Support different sector counts.
+    ASSERT(buffer_length >= 512, "Temporary."); // @TODO: Support different sector counts.
     ASSERT(lba28 <= 0xFFFFFFF, "lba28 can be at most 28 bits.");
 
-    ata_select_drive(bus, drive);
+    ide_select_drive(bus, drive);
 
     uint8_t drive_or_head_value = 
         0xA0 | (drive << 4) | ATA_DRIVE_OR_HEAD_LBA | ((lba28 >> 24) & 0x0F);
@@ -211,11 +204,6 @@ void ata_read(IDE_Bus_ID bus, uint8_t drive, uint8_t sector_count, uint32_t lba2
     // Poll until ERR and DF are clear. They may be set from the previous
     // command for a little bit.
     uint8_t status = in_8(ATA_STATUS(bus));
-    /* @TODO: I think this is wrong. What if the command already finished with an error?
-    while (status & (ATA_STATUS_ERROR | ATA_STATUS_DRIVE_FAULT)) {
-        status = in_8(ATA_STATUS(bus));
-    }
-    */
 
     // Poll until BSY clears. The status register is meaningless until then.
     while (status & ATA_STATUS_BUSY) {
