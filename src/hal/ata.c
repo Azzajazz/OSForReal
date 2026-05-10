@@ -50,6 +50,7 @@
 // ATA Commands.
 #define ATA_COMMAND_IDENTIFY 0xEC
 #define ATA_COMMAND_READ_SECTORS 0x20
+#define ATA_COMMAND_WRITE_SECTORS 0x30
 
 IDE_Channel_Info ide_channels[2] = {0};
 IDE_Drive_Info ide_drives[2][2] = {0};
@@ -66,20 +67,18 @@ void ide_select_drive(IDE_Bus_ID bus, uint8_t drive) {
 }
 
 bool ide_init(bool primary_pci_native, bool secondary_pci_native, uint16_t bar0, uint16_t bar1, uint16_t bar2, uint16_t bar3, uint16_t bar4) {
-    UNUSED(bar0);
-    UNUSED(bar1);
-    UNUSED(bar2);
-    UNUSED(bar3);
     UNUSED(bar4);
     if (primary_pci_native) {
-        TODO("PCI native mode.");
+        ide_channels[IDE_BUS_PRIM].io_base = bar0;
+        ide_channels[IDE_BUS_PRIM].control_base = bar1;
     }
     else {
         ide_channels[IDE_BUS_PRIM].io_base = 0x1F0;
         ide_channels[IDE_BUS_PRIM].control_base = 0x3F6;
     }
     if (secondary_pci_native) {
-        TODO("PCI native mode.");
+        ide_channels[IDE_BUS_PRIM].io_base = bar2;
+        ide_channels[IDE_BUS_PRIM].control_base = bar3;
     }
     else {
         ide_channels[IDE_BUS_SND].io_base = 0x170;
@@ -141,7 +140,6 @@ bool ide_init(bool primary_pci_native, bool secondary_pci_native, uint16_t bar0,
             while ((status & (ATA_STATUS_ERROR | ATA_STATUS_DRQ)) == 0) {
                 status = in_8(ATA_STATUS(bus));
             }
-
             if (status & ATA_STATUS_ERROR) {
                 // @TODO: Better drive type detection.
                 ide_drives[bus][drive].type = DRIVE_TYPE_UNKNOWN;
@@ -183,22 +181,23 @@ bool ide_init(bool primary_pci_native, bool secondary_pci_native, uint16_t bar0,
     return true;
 }
 
-void ata_read(IDE_Bus_ID bus, uint8_t drive, uint8_t sector_count, uint32_t lba28, void *buffer, size_t buffer_length) {
-    // Sector size is assumed to be 512 bytes.
+void ata_prepare_transfer(IDE_Bus_ID bus, uint8_t drive, uint32_t lba28) {
     ASSERT(drive == 0 || drive == 1, "Invalid drive number.");
-    ASSERT(sector_count == 1, "Temporary."); // @TODO: Support different sector counts.
-    ASSERT(buffer_length >= 512, "Temporary."); // @TODO: Support different sector counts.
     ASSERT(lba28 <= 0xFFFFFFF, "lba28 can be at most 28 bits.");
-
-    ide_select_drive(bus, drive);
 
     uint8_t drive_or_head_value = 
         0xA0 | (drive << 4) | ATA_DRIVE_OR_HEAD_LBA | ((lba28 >> 24) & 0x0F);
     out_8(ATA_DRIVE_OR_HEAD(bus), drive_or_head_value);
-    out_8(ATA_SECTOR_COUNT(bus), sector_count);
+    out_8(ATA_SECTOR_COUNT(bus), 1); // @TODO: Support multiple sector reads.
     out_8(ATA_LBALOW_OR_SECTORNUM(bus), lba28 & 0xFF);
     out_8(ATA_LBAMID_OR_CYLINDERLOW(bus), (lba28 >> 8) & 0xFF);
     out_8(ATA_LBAHIGH_OR_CYLINDERHIGH(bus), (lba28 >> 16) & 0xFF);
+}
+
+// @NOTE: The caller must ensure the buffer can hold one 512-byte sector.
+void ata_read_sector(IDE_Bus_ID bus, uint8_t drive, uint32_t lba28, void *buffer) {
+    ide_select_drive(bus, drive);
+    ata_prepare_transfer(bus, drive, lba28);
     out_8(ATA_COMMAND(bus), ATA_COMMAND_READ_SECTORS);
     
     // Poll until ERR and DF are clear. They may be set from the previous
@@ -215,9 +214,6 @@ void ata_read(IDE_Bus_ID bus, uint8_t drive, uint8_t sector_count, uint32_t lba2
     while ((status & (ATA_STATUS_DRQ | ATA_STATUS_ERROR | ATA_STATUS_DRIVE_FAULT)) == 0) {
         status = in_8(ATA_STATUS(bus));
     }
-    if (status & ATA_STATUS_ERROR) {
-        fmt_print("error: %hhx\n", in_8(ATA_ERROR(bus)));
-    }
     ASSERT((status & (ATA_STATUS_ERROR | ATA_STATUS_DRIVE_FAULT)) == 0, "Error should not occur.");
 
     // @TODO: Alignment applies here; we should make sure that buffer is uint16_t aligned.
@@ -225,5 +221,35 @@ void ata_read(IDE_Bus_ID bus, uint8_t drive, uint8_t sector_count, uint32_t lba2
     uint16_t *buffer_16 = (uint16_t *)buffer;
     for (size_t i = 0; i < 256; i++) {
         buffer_16[i] = in_16(ATA_DATA(bus));
+    }
+}
+
+// @NOTE: The caller must ensure the buffer contains 512 bytes of data.
+void ata_write_sector(IDE_Bus_ID bus, uint8_t drive, uint32_t lba28, void *buffer) {
+    ide_select_drive(bus, drive);
+    ata_prepare_transfer(bus, drive, lba28);
+    out_8(ATA_COMMAND(bus), ATA_COMMAND_WRITE_SECTORS);
+    
+    // Poll until ERR and DF are clear. They may be set from the previous
+    // command for a little bit.
+    uint8_t status = in_8(ATA_STATUS(bus));
+
+    // Poll until BSY clears. The status register is meaningless until then.
+    while (status & ATA_STATUS_BUSY) {
+        status = in_8(ATA_STATUS(bus));
+    }
+
+    // Poll until DRQ is set (i.e, there is data to be read) or ERR/DF is set
+    // (i.e, something went wrong).
+    while ((status & (ATA_STATUS_DRQ | ATA_STATUS_ERROR | ATA_STATUS_DRIVE_FAULT)) == 0) {
+        status = in_8(ATA_STATUS(bus));
+    }
+    ASSERT((status & (ATA_STATUS_ERROR | ATA_STATUS_DRIVE_FAULT)) == 0, "Error should not occur.");
+
+    // @TODO: Alignment applies here; we should make sure that buffer is uint16_t aligned.
+    // This requires adding an alignment parameter to memory_allocate.
+    uint16_t *buffer_16 = (uint16_t *)buffer;
+    for (size_t i = 0; i < 256; i++) {
+        out_16(ATA_DATA(bus), buffer_16[i]);
     }
 }

@@ -24,4 +24,4 @@ typedef struct {
 } IDE_Drive_Info;
 
 bool ide_init(bool primary_pci_native, bool secondary_pci_native, uint16_t bar0, uint16_t bar1, uint16_t bar2, uint16_t bar3, uint16_t bar4);
-void ata_read(IDE_Bus_ID bus, uint8_t drive, uint8_t sector_count, uint32_t lba28, void *buffer, size_t buffer_length);
+void ata_read_sector(IDE_Bus_ID bus, uint8_t drive, uint32_t lba28, void *buffer);
