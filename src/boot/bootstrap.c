@@ -17,7 +17,7 @@ extern char __kernel_phys_end[];
 
 #include "multiboot.h"
 #include "gdt.c"
-#include "paging.c"
+#include "../paging.h"
 
 BOOT_DATA ALIGN(PAGE_SIZE) uint32_t page_directory[1024] = {0};
 BOOT_DATA ALIGN(PAGE_SIZE) uint32_t low_page_table[1024] = {0};

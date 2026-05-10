@@ -1,5 +1,4 @@
-// @TODO: Move paging.c to a place common to bootstrap and kernel.
-#include "boot/paging.c"
+#include "paging.h"
 
 extern uint32_t page_directory[1024];
 
