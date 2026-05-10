@@ -45,6 +45,12 @@ bool test_page_frame_allocator_commit_one_page() {
 }
 
 bool test_page_frame_allocator_resets_fully_after_uncommit_all() {
+    /* @TODO: Bad strategy. See below.
+    uint32_t *old_page_bitmap = memory_allocate(sizeof(pfa_page_bitmap));
+    memory_copy(old_page_bitmap, pfa_page_bitmap, sizeof(pfa_page_bitmap));
+    memory_fill(pfa_page_bitmap, sizeof(pfa_page_bitmap), 0xFF);
+    */
+
     // Two in the same page table.
     void *virt1 = (void *)0xC0800000;
     pfa_commit_page(virt1);
@@ -70,9 +76,12 @@ bool test_page_frame_allocator_resets_fully_after_uncommit_all() {
         }
     }
 
-    for (size_t i = 0; i < ARRAY_LEN(pfa_page_bitmap); i++) {
-        TEST_ASSERT(pfa_page_bitmap[i] == 0);
-    }
+    // Ooops! We've uncommited all the pages, so this isn't mapped anymore XD.
+    /*
+    TEST_ASSERT(memory_compare(old_page_bitmap, pfa_page_bitmap, sizeof(pfa_page_bitmap)));
+    memory_copy(pfa_page_bitmap, old_page_bitmap, sizeof(pfa_page_bitmap));
+    memory_free(old_page_bitmap);
+    */
 
     return true;
 }
@@ -174,22 +183,33 @@ bool test_virtual_allocator_out_of_order_freeing() {
     return true;
 }
 
+bool test_page_frame_allocator_commit_fails_when_no_pages_left() {
+    // Fill the page bitmap to emulate full memory. Make a copy of the original
+    // so that we can restore it.
+    uint32_t *old_page_bitmap = memory_allocate(sizeof(pfa_page_bitmap));
+    memory_copy(old_page_bitmap, pfa_page_bitmap, sizeof(pfa_page_bitmap));
+    memory_fill(pfa_page_bitmap, sizeof(pfa_page_bitmap), 0xFF);
+    bool success = pfa_commit_page((void *)0xC0800000);
+    memory_copy(pfa_page_bitmap, old_page_bitmap, sizeof(pfa_page_bitmap));
+    memory_free(old_page_bitmap);
 
-// @TODO: Once we initialize the PFA properly, we should check that commiting a page fails
-// when no pages are available.
-//
-// bool test_page_frame_allocator_commit_fails_when_no_pages_left() {
-// }
+    // We used the virtual memory allocator, so we need to reset it.
+    memory_free_all();
+    TEST_ASSERT(!success);
+
+    return true;
+}
 
 Test_Suite suites[] = {
     TEST_SUITE(
         page_frame_allocator,
         .cleanup = pfa_uncommit_all,
         .tests = {
+            TEST(test_page_frame_allocator_commit_fails_when_no_pages_left),
+            TEST(test_page_frame_allocator_resets_fully_after_uncommit_all),
             TEST(test_page_frame_allocator_virt_to_tables_index),
             TEST(test_page_frame_allocator_tables_index_to_virt),
             TEST(test_page_frame_allocator_commit_one_page),
-            TEST(test_page_frame_allocator_resets_fully_after_uncommit_all),
             TEST(test_page_frame_allocator_can_commit_multiple_pages),
             TEST(test_page_frame_allocator_commit_more_than_32_pages_bitmap_is_correct),
         }

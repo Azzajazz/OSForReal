@@ -32,7 +32,7 @@ BOOT_DATA ALIGN(PAGE_SIZE) uint32_t kernel_page_table2[1024] = {0};
     void kernel_main(Multiboot_Info *boot_info);
 #endif
 
-BOOT_FN void memory_copy(void *dst, void *src, size_t size) {
+BOOT_FN void boot_memory_copy(void *dst, void *src, size_t size) {
     uint8_t *dst_b = dst;
     uint8_t *src_b = src;
     for (size_t i = 0; i < size; i++) {
@@ -44,9 +44,9 @@ BOOT_FN void bootstrap(Multiboot_Info *boot_info) {
     // Copy the multiboot info and mmap information to a known location before setting
     // up paging.
     Multiboot_Info *b_info = (Multiboot_Info *)__boot_end;
-    memory_copy(b_info, boot_info, sizeof(*boot_info));
+    boot_memory_copy(b_info, boot_info, sizeof(*boot_info));
     uint8_t *new_mmap_addr = (uint8_t *)(b_info + 1);
-    memory_copy(new_mmap_addr, (uint8_t *)b_info->mmap_addr, b_info->mmap_length);
+    boot_memory_copy(new_mmap_addr, (uint8_t *)b_info->mmap_addr, b_info->mmap_length);
     b_info->mmap_addr = (uint32_t)new_mmap_addr;
 
     // Identity map the first 2 MB, map the kernel to address 0xC0000000 and map the

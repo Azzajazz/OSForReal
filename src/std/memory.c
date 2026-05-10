@@ -174,3 +174,24 @@ void memory_fill(void *address, size_t length, uint8_t val) {
 void memory_zero(void *address, size_t length) {
     memory_fill(address, length, 0);
 }
+
+void memory_copy(void *dst, void *src, size_t size) {
+    uint8_t *dst_b = dst;
+    uint8_t *src_b = src;
+    for (size_t i = 0; i < size; i++) {
+        dst_b[i] = src_b[i];
+    }
+}
+
+bool memory_compare(void *mem1, void *mem2, size_t size) {
+    uint8_t *mem1_b = mem1;
+    uint8_t *mem2_b = mem2;
+
+    for (size_t i = 0; i < size; i++) {
+        if (mem1_b[i] != mem2_b[i]) {
+            return false;
+        }
+    }
+
+    return true;
+}
