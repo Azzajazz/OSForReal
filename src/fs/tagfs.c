@@ -67,12 +67,10 @@ bool tfs_get_file_metadata_from_name(String path, TagFS_File_Metadata *file_meta
     return false;
 }
 
-// @TODO: Return some sort of status code.
+// @TODO: Return some sort of status code, or maybe how many bytes were read.
 bool tfs_read(String path, uint8_t *buffer, size_t read_size, size_t offset) {
     ASSERT(tfs_fs_meta.fat_sector_count == 2, "Unsupported sector count.");
     bool result = true;
-    UNUSED(buffer);
-    UNUSED(read_size);
 
     size_t fats_size = tfs_fs_meta.sector_size * tfs_fs_meta.fat_sector_count;
     // @TODO: Allocate this buffer only once. In future, we may need to

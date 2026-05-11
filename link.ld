@@ -69,6 +69,8 @@ SECTIONS
     __kernel_end = .;
     __kernel_phys_end = __kernel_phys_start + (__kernel_end - __kernel_start);
 
+    ASSERT(__kernel_phys_end - __kernel_phys_start < LENGTH(KERNELVIRT), "Kernel is too big!")
+
     /DISCARD/ :
     {
         *(.comment)
