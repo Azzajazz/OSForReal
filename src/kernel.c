@@ -16,6 +16,7 @@ extern char __kernel_end[];
 #include "platform/x86.c"
 #include "hal/hal.c"
 #include "std/std.c"
+#include "fs/fs.c"
 #include "page_frame_allocator.c"
 
 
@@ -46,6 +47,8 @@ void kernel_init(Multiboot_Info *boot_info) {
     ASSERT(initted, "Memory initialization failed.");
     initted = pci_init();
     ASSERT(initted, "PCI initialization failed.");
+    initted = tfs_init();
+    ASSERT(initted, "TagFS initialization failed.");
 }
 
 void kernel_main(Multiboot_Info *boot_info) {
@@ -105,6 +108,7 @@ void kernel_main(Multiboot_Info *boot_info) {
 
     fmt_print("\n");
     uint8_t *data = memory_allocate(512);
+    /*
     fmt_print("Before write:\n");
     ata_read_sector(IDE_BUS_PRIM, 0, 0, data);
     for (size_t i = 0; i < 512 / 32; i++) {
@@ -123,6 +127,10 @@ void kernel_main(Multiboot_Info *boot_info) {
         }
         fmt_print("\n");
     }
+    */
+
+    tfs_read(str_literal("hello.txt"), data, 512, 0);
+    fmt_print("%s\n", data);
     
     for(;;);
 }

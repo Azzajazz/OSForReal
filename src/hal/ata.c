@@ -214,6 +214,10 @@ void ata_read_sector(IDE_Bus_ID bus, uint8_t drive, uint32_t lba28, void *buffer
     while ((status & (ATA_STATUS_DRQ | ATA_STATUS_ERROR | ATA_STATUS_DRIVE_FAULT)) == 0) {
         status = in_8(ATA_STATUS(bus));
     }
+    if (status & (ATA_STATUS_ERROR | ATA_STATUS_DRIVE_FAULT)) {
+        fmt_print("Error: %hhx\n", in_8(ATA_ERROR(bus)));
+    }
+
     ASSERT((status & (ATA_STATUS_ERROR | ATA_STATUS_DRIVE_FAULT)) == 0, "Error should not occur.");
 
     // @TODO: Alignment applies here; we should make sure that buffer is uint16_t aligned.
@@ -244,6 +248,10 @@ void ata_write_sector(IDE_Bus_ID bus, uint8_t drive, uint32_t lba28, void *buffe
     while ((status & (ATA_STATUS_DRQ | ATA_STATUS_ERROR | ATA_STATUS_DRIVE_FAULT)) == 0) {
         status = in_8(ATA_STATUS(bus));
     }
+    if (status & (ATA_STATUS_ERROR | ATA_STATUS_DRIVE_FAULT)) {
+        fmt_print("Error: %hhx\n", in_8(ATA_ERROR(bus)));
+    }
+
     ASSERT((status & (ATA_STATUS_ERROR | ATA_STATUS_DRIVE_FAULT)) == 0, "Error should not occur.");
 
     // @TODO: Alignment applies here; we should make sure that buffer is uint16_t aligned.

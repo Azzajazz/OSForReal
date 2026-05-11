@@ -16,3 +16,4 @@ typedef struct {
 } String;
 
 String str_literal(char *cstr);
+bool str_equals_cstr(String str, char *cstr);

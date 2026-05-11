@@ -3,3 +3,4 @@
 #include "platform/x86_def.h"
 #include "std/std_def.h"
 #include "page_frame_allocator_def.h"
+#include "fs/fs_def.h"

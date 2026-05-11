@@ -1,17 +1,8 @@
-- Allocators
-    - Initialize page metadata.
-    X Write a page frame allocator.
-        X Test this.
-    X Write a GPA or a bump allocator.
-        X Finish memory allocation.
-        X Implement freeing.
-        X Test this.
-
 - PCI
     X Print vendor ids of existing devices.
     - Make a driver hookup mechanism for PCI devices.
         - I think we will need ELF parsing for this, one way or another.
-    - Write a driver for something :)
+    X Write a driver for something :)
 
 - TagFS
     - Expand on docs as needed.
