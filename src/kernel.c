@@ -132,6 +132,12 @@ void kernel_main(Multiboot_Info *boot_info) {
     fmt_print("Contents of hello.txt:\n");
     tfs_read(str_literal("hello.txt"), data, 512, 0);
     fmt_print("%s\n", data);
+
+    fmt_print("Writing to hello.txt...\n");
+    tfs_write(str_literal("hello.txt"), (uint8_t *)"hihihihihi\n", 11, 0);
+    fmt_print("After write:\n");
+    tfs_read(str_literal("hello.txt"), data, 512, 0);
+    fmt_print("%s\n", data);
     
     for(;;);
 }

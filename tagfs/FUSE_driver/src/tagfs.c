@@ -196,7 +196,6 @@ static int tagfs_write(
 
     FS_Metadata *fs_meta = (FS_Metadata*)mapped_img;
     File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
-    int file_meta_count = count_file_meta_entries(fs_meta);
 
     uint16_t file_id = get_file_id_from_name(fs_meta, file_meta, path);
     if (file_id == 0) {
