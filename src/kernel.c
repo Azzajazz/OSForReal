@@ -129,6 +129,14 @@ void kernel_main(Multiboot_Info *boot_info) {
     }
     */
 
+    fmt_print("Attributes of hello.txt:\n");
+    TagFS_File_Metadata file_meta;
+    tfs_get_file_attributes(str_literal("hello.txt"), &file_meta);
+    fmt_print("first_data_sector: %d\n", file_meta.first_data_sector);
+    fmt_print("size: %d\n", file_meta.size);
+    fmt_print("name: %s\n", file_meta.name);
+    fmt_print("\n");
+
     fmt_print("Contents of hello.txt:\n");
     tfs_read(str_literal("hello.txt"), data, 512, 0);
     fmt_print("%s\n", data);
@@ -138,6 +146,14 @@ void kernel_main(Multiboot_Info *boot_info) {
     fmt_print("After write:\n");
     tfs_read(str_literal("hello.txt"), data, 512, 0);
     fmt_print("%s\n", data);
+
+    fmt_print("\n");
+    fmt_print("Attributes after writing:\n");
+    tfs_get_file_attributes(str_literal("hello.txt"), &file_meta);
+    fmt_print("first_data_sector: %d\n", file_meta.first_data_sector);
+    fmt_print("size: %d\n", file_meta.size);
+    fmt_print("name: %s\n", file_meta.name);
+    fmt_print("\n");
     
     for(;;);
 }
