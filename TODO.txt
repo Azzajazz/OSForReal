@@ -18,6 +18,7 @@
 
 --------------------------------------------------------------------------------
 - BUGS
+    - Writing to the hard drive (ata_write_sector) will sometimes hang when polling the status register.
 
 --------------------------------------------------------------------------------
 - Improvements

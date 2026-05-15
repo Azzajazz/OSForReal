@@ -51,6 +51,7 @@
 #define ATA_COMMAND_IDENTIFY 0xEC
 #define ATA_COMMAND_READ_SECTORS 0x20
 #define ATA_COMMAND_WRITE_SECTORS 0x30
+#define ATA_COMMAND_CACHE_FLUSH 0xE7
 
 IDE_Channel_Info ide_channels[2] = {0};
 IDE_Drive_Info ide_drives[2][2] = {0};
@@ -110,9 +111,12 @@ bool ide_init(bool primary_pci_native, bool secondary_pci_native, uint16_t bar0,
 
             ide_select_drive(bus, drive);
 
-            // Poll until BSY and DRQ are clear.
+            // Disable interrupts.
+            out_8(ATA_DEV_CONTROL(bus), 0x2);
+
+            // Poll until BSY is clear.
             uint8_t status = in_8(ATA_STATUS(bus));
-            while (status & (ATA_STATUS_BUSY | ATA_STATUS_DRQ)) {
+            while (status & ATA_STATUS_BUSY) {
                 status = in_8(ATA_STATUS(bus));
             }
 
@@ -259,5 +263,10 @@ void ata_write_sector(IDE_Bus_ID bus, uint8_t drive, uint32_t lba28, void *buffe
     uint16_t *buffer_16 = (uint16_t *)buffer;
     for (size_t i = 0; i < 256; i++) {
         out_16(ATA_DATA(bus), buffer_16[i]);
+    }
+
+    out_8(ATA_COMMAND(bus), ATA_COMMAND_CACHE_FLUSH);
+    while (status & ATA_STATUS_BUSY) {
+        status = in_8(ATA_STATUS(bus));
     }
 }

@@ -37,6 +37,10 @@ static inline size_t tfs_count_file_meta_entries() {
     return tfs_fs_meta.file_meta_sector_count * tfs_fs_meta.sector_size / sizeof(TagFS_File_Metadata);
 }
 
+static inline bool tfs_file_metadata_entry_is_free(TagFS_File_Metadata *file_meta) {
+    return file_meta->name[0] == '\0';
+}
+
 typedef struct {
     bool found;
     uint32_t lba;
@@ -293,4 +297,42 @@ done:
     memory_free(file_meta);
     memory_free(fats);
     return result;
+}
+
+bool tfs_make_new_file(String path) {
+    if (path.length >= 24) {
+        return false;
+    }
+
+    uint32_t file_meta_lba = tfs_get_file_metadata_lba();
+    size_t file_meta_entries_per_sector = tfs_fs_meta.sector_size / sizeof(TagFS_File_Metadata);
+    size_t file_count = 0;
+
+    for (
+        size_t sector_offset = 0;
+        sector_offset < tfs_fs_meta.file_meta_sector_count;
+        sector_offset++
+    ) {
+        ata_read_sector(IDE_BUS_PRIM, 0, file_meta_lba, tfs_sector_buffer);
+        TagFS_File_Metadata *buf_file_meta = (TagFS_File_Metadata *)tfs_sector_buffer;
+
+        for (size_t i = 0; i < file_meta_entries_per_sector; i++) {
+            if (tfs_file_metadata_entry_is_free(&buf_file_meta[i])) {
+                buf_file_meta->first_data_sector = 0xffff;
+                buf_file_meta->size = 0;
+                memory_copy(buf_file_meta->name, path.data, path.length);
+                buf_file_meta->name[path.length] = '\0';
+                ata_write_sector(IDE_BUS_PRIM, 0, file_meta_lba, tfs_sector_buffer);
+                return true;
+            }
+            file_count++;
+            if (file_count > tfs_count_file_meta_entries()) {
+                return false;
+            }
+        }
+
+        file_meta_lba++;
+    }
+
+    return false;
 }
