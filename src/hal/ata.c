@@ -193,6 +193,7 @@ void ata_prepare_transfer(IDE_Bus_ID bus, uint8_t drive, uint32_t lba28) {
         0xA0 | (drive << 4) | ATA_DRIVE_OR_HEAD_LBA | ((lba28 >> 24) & 0x0F);
     out_8(ATA_DRIVE_OR_HEAD(bus), drive_or_head_value);
     out_8(ATA_SECTOR_COUNT(bus), 1); // @TODO: Support multiple sector reads.
+    fmt_print("%hhx\n", in_8(ATA_SECTOR_COUNT(bus)));
     out_8(ATA_LBALOW_OR_SECTORNUM(bus), lba28 & 0xFF);
     out_8(ATA_LBAMID_OR_CYLINDERLOW(bus), (lba28 >> 8) & 0xFF);
     out_8(ATA_LBAHIGH_OR_CYLINDERHIGH(bus), (lba28 >> 16) & 0xFF);
