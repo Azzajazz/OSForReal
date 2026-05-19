@@ -1,3 +1,11 @@
+- Get to user space
+    - Device detection
+        - Skip ACPI and just do PIC device detection.
+    - Driver loading
+        - Introduce boot disk partition + some way of identifying hard drive with this partition in it.
+        - Store drivers as relocatable object files (dynamic ELF?) in boot partition.
+        - Load drivers for detected devices in user space on kernel initialisation.
+
 - PCI
     X Print vendor ids of existing devices.
     - Make a driver hookup mechanism for PCI devices.
@@ -36,9 +44,8 @@ Toolchain:
 Kernel:
 - PS/2 keyboard driver
 - File system driver
-- ELF parsing
-- Executable loader
 - Context switching
+- Executable loader
 
 --------------------------------------------------------------------------------
 Misc/low priority:

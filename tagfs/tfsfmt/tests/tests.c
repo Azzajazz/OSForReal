@@ -93,16 +93,16 @@ bool tfsfmt_test_format_with_default_args() {
     ASSERT(fs_meta->tag_file_sector_count == 10);
     ASSERT(fs_meta->fat_sector_count == 2);
 
-    File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
+    File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta, 0);
     ASSERT(file_metadata_entry_is_free(file_meta));
 
-    Tag_Metadata *tag_meta = get_tag_metadata(mapped_img, fs_meta);
+    Tag_Metadata *tag_meta = get_tag_metadata(mapped_img, fs_meta, 0);
     ASSERT(tag_metadata_entry_is_free(tag_meta));
 
-    Tag_File_Entry *tag_file = get_tag_file_array(mapped_img, fs_meta);
+    Tag_File_Entry *tag_file = get_tag_file_array(mapped_img, fs_meta, 0);
     ASSERT(tag_file_entry_is_free(tag_file));
 
-    uint16_t *fat = get_fat(mapped_img, fs_meta);
+    uint16_t *fat = get_fat(mapped_img, fs_meta, 0);
     int num_fat_entries = fs_meta->fat_sector_count * fs_meta->sector_size / 2;
     for (int i = 0; i < num_fat_entries; i++) {
         ASSERT(fat[i] == 0);
@@ -140,16 +140,16 @@ bool tfsfmt_test_format_with_custom_args() {
     ASSERT(fs_meta->tag_file_sector_count == 3);
     ASSERT(fs_meta->fat_sector_count == 3);
 
-    File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
+    File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta, 0);
     ASSERT(file_metadata_entry_is_free(file_meta));
 
-    Tag_Metadata *tag_meta = get_tag_metadata(mapped_img, fs_meta);
+    Tag_Metadata *tag_meta = get_tag_metadata(mapped_img, fs_meta, 0);
     ASSERT(tag_metadata_entry_is_free(tag_meta));
 
-    Tag_File_Entry *tag_file = get_tag_file_array(mapped_img, fs_meta);
+    Tag_File_Entry *tag_file = get_tag_file_array(mapped_img, fs_meta, 0);
     ASSERT(tag_file_entry_is_free(tag_file));
 
-    uint16_t *fat = get_fat(mapped_img, fs_meta);
+    uint16_t *fat = get_fat(mapped_img, fs_meta, 0);
     int num_fat_entries = fs_meta->fat_sector_count * fs_meta->sector_size / 2;
     for (int i = 0; i < num_fat_entries; i++) {
         ASSERT(fat[i] == 0);
@@ -200,16 +200,16 @@ bool tfsfmt_test_write_files_tag_names_and_file_names_too_long() {
     // The file and the tag should have been skipped, so no changes should be made.
     FS_Metadata *fs_meta = (FS_Metadata*)mapped_img;
 
-    File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
+    File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta, 0);
     ASSERT(file_meta->first_data_sector == 0);
 
-    uint16_t *fat = get_fat(mapped_img, fs_meta);
+    uint16_t *fat = get_fat(mapped_img, fs_meta, 0);
     ASSERT(fat[0] == 0);
 
-    Tag_Metadata *tag_meta = get_tag_metadata(mapped_img, fs_meta);
+    Tag_Metadata *tag_meta = get_tag_metadata(mapped_img, fs_meta, 0);
     ASSERT(tag_metadata_entry_is_free(tag_meta));
     
-    Tag_File_Entry *tag_file = get_tag_file_array(mapped_img, fs_meta);
+    Tag_File_Entry *tag_file = get_tag_file_array(mapped_img, fs_meta, 0);
     ASSERT(tag_file_entry_is_free(tag_file));
 
     munmap(mapped_img, image_size);
@@ -236,7 +236,7 @@ bool tfsfmt_test_write_files_not_enough_data_space() {
 
     // Mark all of the FAT except the last entry as used to simulate a full disk.
     FS_Metadata *fs_meta = (FS_Metadata*)mapped_img;
-    uint16_t *fat = get_fat(mapped_img, fs_meta);
+    uint16_t *fat = get_fat(mapped_img, fs_meta, 0);
     unsigned int fat_entry_count = fs_meta->fat_sector_count * fs_meta->sector_size / 2;
     for (unsigned int i = 0; i < fat_entry_count - 1; i++) {
         fat[i] = 0xffff;
@@ -250,7 +250,7 @@ bool tfsfmt_test_write_files_not_enough_data_space() {
     
     // There should be exactly one sector of data from many_sectors.txt and the size in the file
     // metadata section should also reflect this.
-    File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
+    File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta, 0);
     ASSERT(file_meta->first_data_sector == fat_entry_count - 1);
     ASSERT(file_meta->size == fs_meta->sector_size);
     int cmp_result = strcmp(file_meta->name, dst_file);
@@ -258,7 +258,7 @@ bool tfsfmt_test_write_files_not_enough_data_space() {
 
     ASSERT(fat[fat_entry_count - 1] == 0xffff);
 
-    uint8_t *data = get_data(mapped_img, fs_meta);
+    uint8_t *data = get_data(mapped_img, fs_meta, 0);
     uint8_t *written_data = data + fs_meta->sector_size * (fat_entry_count - 1);
     cmp_result = memcmp(written_data, mapped_src, fs_meta->sector_size);
     ASSERT(cmp_result == 0);
@@ -288,13 +288,13 @@ bool tfsfmt_test_write_files_fat_is_full() {
 
     // Mark all of the FAT as used to simulate a full disk.
     FS_Metadata *fs_meta = (FS_Metadata*)mapped_img;
-    uint16_t *fat = get_fat(mapped_img, fs_meta);
+    uint16_t *fat = get_fat(mapped_img, fs_meta, 0);
     unsigned int fat_entry_count = fs_meta->fat_sector_count * fs_meta->sector_size / 2;
     for (unsigned int i = 0; i < fat_entry_count; i++) {
         fat[i] = 0xffff;
     }
 
-    uint8_t *data = get_data(mapped_img, fs_meta);
+    uint8_t *data = get_data(mapped_img, fs_meta, 0);
     uint8_t *old_data = malloc(fat_entry_count * fs_meta->sector_size);
     memcpy(old_data, data, fat_entry_count * fs_meta->sector_size);
 
@@ -305,7 +305,7 @@ bool tfsfmt_test_write_files_fat_is_full() {
     msync(mapped_img, image_size, MS_SYNC);
     
     // There should be no file metadata.
-    File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
+    File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta, 0);
     ASSERT(file_meta->first_data_sector == 0);
 
     // Check that the data is unchanged.
@@ -341,7 +341,7 @@ bool tfsfmt_test_write_files_file_metadata_is_full() {
     // Mark all of the file metadata entries as used.
     FS_Metadata *fs_meta = (FS_Metadata*)mapped_img;
 
-    File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
+    File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta, 0);
     int file_meta_count = fs_meta->file_meta_sector_count * fs_meta->sector_size / sizeof(File_Metadata);
     for (int i = 0; i < file_meta_count; i++) {
         file_meta[i].name[0] = 'a';
@@ -393,7 +393,7 @@ bool tfsfmt_test_write_files_tag_file_map_is_full() {
 
     // Mark all of the tag file map entries as used.
     FS_Metadata *fs_meta = (FS_Metadata*)mapped_img;
-    Tag_File_Entry *tag_file = get_tag_file_array(mapped_img, fs_meta);
+    Tag_File_Entry *tag_file = get_tag_file_array(mapped_img, fs_meta, 0);
     int tag_file_count = fs_meta->tag_file_sector_count * fs_meta->sector_size / sizeof(Tag_File_Entry);
     for (int i = 0; i < tag_file_count; i++) {
         tag_file[i].tag_id = 0xffff;
@@ -413,22 +413,22 @@ bool tfsfmt_test_write_files_tag_file_map_is_full() {
     // Capture changes made by the write-files command above.
     msync(mapped_img, image_size, MS_SYNC);
 
-    File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
+    File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta, 0);
     ASSERT(file_meta->first_data_sector == 0);
     ASSERT(file_meta->size == src_size);
     int cmp_result = strcmp(file_meta->name, dst_file);
     ASSERT(cmp_result == 0);
 
-    uint16_t *fat = get_fat(mapped_img, fs_meta);
+    uint16_t *fat = get_fat(mapped_img, fs_meta, 0);
     ASSERT(fat[0] == 0xffff);
     ASSERT(fat[1] == 0);
 
-    uint8_t *data = get_data(mapped_img, fs_meta);
+    uint8_t *data = get_data(mapped_img, fs_meta, 0);
     cmp_result = memcmp(data, mapped_src, src_size);
     ASSERT(cmp_result == 0);
 
     // The tag should be created.
-    Tag_Metadata *tag_meta = get_tag_metadata(mapped_img, fs_meta);
+    Tag_Metadata *tag_meta = get_tag_metadata(mapped_img, fs_meta, 0);
     cmp_result = strcmp(tag_meta->name, tag_name);
     ASSERT(cmp_result == 0);
 
@@ -463,7 +463,7 @@ bool tfsfmt_test_write_files_tag_metadata_is_full() {
 
     // Mark all of the tag metadata entries as used.
     FS_Metadata *fs_meta = (FS_Metadata*)mapped_img;
-    Tag_Metadata *tag_meta = get_tag_metadata(mapped_img, fs_meta);
+    Tag_Metadata *tag_meta = get_tag_metadata(mapped_img, fs_meta, 0);
     int tag_meta_count = fs_meta->tag_meta_sector_count * fs_meta->sector_size / sizeof(Tag_Metadata);
     for (int i = 0; i < tag_meta_count; i++) {
         tag_meta[i].name[0] = 'a';
@@ -479,22 +479,22 @@ bool tfsfmt_test_write_files_tag_metadata_is_full() {
     // Capture changes made by the write-files command above.
     msync(mapped_img, image_size, MS_SYNC);
 
-    File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
+    File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta, 0);
     ASSERT(file_meta->first_data_sector == 0);
     ASSERT(file_meta->size == src_size);
     int cmp_result = strcmp(file_meta->name, dst_file);
     ASSERT(cmp_result == 0);
 
-    uint16_t *fat = get_fat(mapped_img, fs_meta);
+    uint16_t *fat = get_fat(mapped_img, fs_meta, 0);
     ASSERT(fat[0] == 0xffff);
     ASSERT(fat[1] == 0);
 
-    uint8_t *data = get_data(mapped_img, fs_meta);
+    uint8_t *data = get_data(mapped_img, fs_meta, 0);
     cmp_result = memcmp(data, mapped_src, src_size);
     ASSERT(cmp_result == 0);
 
     // There should be no tag links, since the tag was not created.
-    Tag_File_Entry *tag_file = get_tag_file_array(mapped_img, fs_meta);
+    Tag_File_Entry *tag_file = get_tag_file_array(mapped_img, fs_meta, 0);
     ASSERT(tag_file_entry_is_free(tag_file));
 
     munmap(mapped_img, image_size);
@@ -525,17 +525,17 @@ bool tfsfmt_test_write_files_no_colon_filespec() {
 
     FS_Metadata *fs_meta = (FS_Metadata*)mapped_img;
 
-    File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
+    File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta, 0);
     ASSERT(file_meta->first_data_sector == 0);
     ASSERT(file_meta->size == src_size);
     int cmp_result = strcmp(file_meta->name, dst_file);
     ASSERT(cmp_result == 0);
 
-    uint16_t *fat = get_fat(mapped_img, fs_meta);
+    uint16_t *fat = get_fat(mapped_img, fs_meta, 0);
     ASSERT(fat[0] == 0xffff);
     ASSERT(fat[1] == 0);
 
-    uint8_t *data = get_data(mapped_img, fs_meta);
+    uint8_t *data = get_data(mapped_img, fs_meta, 0);
     cmp_result = memcmp(data, mapped_src, src_size);
     ASSERT(cmp_result == 0);
 
@@ -567,17 +567,17 @@ bool tfsfmt_test_write_files_less_than_one_sector() {
 
     FS_Metadata *fs_meta = (FS_Metadata*)mapped_img;
 
-    File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
+    File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta, 0);
     ASSERT(file_meta->first_data_sector == 0);
     ASSERT(file_meta->size == src_size);
     int cmp_result = strcmp(file_meta->name, dst_file);
     ASSERT(cmp_result == 0);
 
-    uint16_t *fat = get_fat(mapped_img, fs_meta);
+    uint16_t *fat = get_fat(mapped_img, fs_meta, 0);
     ASSERT(fat[0] == 0xffff);
     ASSERT(fat[1] == 0);
 
-    uint8_t *data = get_data(mapped_img, fs_meta);
+    uint8_t *data = get_data(mapped_img, fs_meta, 0);
     cmp_result = memcmp(data, mapped_src, src_size);
     ASSERT(cmp_result == 0);
 
@@ -609,17 +609,17 @@ bool tfsfmt_test_write_files_exactly_one_sector() {
 
     FS_Metadata *fs_meta = (FS_Metadata*)mapped_img;
 
-    File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
+    File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta, 0);
     ASSERT(file_meta->first_data_sector == 0);
     ASSERT(file_meta->size == src_size);
     int cmp_result = strcmp(file_meta->name, dst_file);
     ASSERT(cmp_result == 0);
 
-    uint16_t *fat = get_fat(mapped_img, fs_meta);
+    uint16_t *fat = get_fat(mapped_img, fs_meta, 0);
     ASSERT(fat[0] == 0xffff);
     ASSERT(fat[1] == 0);
 
-    uint8_t *data = get_data(mapped_img, fs_meta);
+    uint8_t *data = get_data(mapped_img, fs_meta, 0);
     cmp_result = memcmp(data, mapped_src, src_size);
     ASSERT(cmp_result == 0);
 
@@ -651,19 +651,19 @@ bool tfsfmt_test_write_files_many_sectors() {
 
     FS_Metadata *fs_meta = (FS_Metadata*)mapped_img;
 
-    File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
+    File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta, 0);
     ASSERT(file_meta->first_data_sector == 0);
     ASSERT(file_meta->size == src_size);
     int cmp_result = strcmp(file_meta->name, dst_file);
     ASSERT(cmp_result == 0);
 
-    uint16_t *fat = get_fat(mapped_img, fs_meta);
+    uint16_t *fat = get_fat(mapped_img, fs_meta, 0);
     ASSERT(fat[0] == 1);
     ASSERT(fat[1] == 2);
     ASSERT(fat[2] == 0xffff);
     ASSERT(fat[3] == 0);
 
-    uint8_t *data = get_data(mapped_img, fs_meta);
+    uint8_t *data = get_data(mapped_img, fs_meta, 0);
     cmp_result = memcmp(data, mapped_src, src_size);
     ASSERT(cmp_result == 0);
 
@@ -704,18 +704,18 @@ bool tfsfmt_test_write_files_two_files() {
     FS_Metadata *fs_meta = (FS_Metadata*)mapped_img;
 
     // Check data for many_sectors.txt
-    File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
+    File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta, 0);
     ASSERT(file_meta[0].first_data_sector == 0);
     ASSERT(file_meta[0].size == src_size_1);
     int cmp_result = strcmp(file_meta[0].name, dst_file_1);
     ASSERT(cmp_result == 0);
 
-    uint16_t *fat = get_fat(mapped_img, fs_meta);
+    uint16_t *fat = get_fat(mapped_img, fs_meta, 0);
     ASSERT(fat[0] == 1);
     ASSERT(fat[1] == 2);
     ASSERT(fat[2] == 0xffff);
 
-    uint8_t *data = get_data(mapped_img, fs_meta);
+    uint8_t *data = get_data(mapped_img, fs_meta, 0);
     cmp_result = memcmp(data, mapped_src_1, src_size_1);
     ASSERT(cmp_result == 0);
 
@@ -763,16 +763,16 @@ bool tfsfmt_test_write_files_same_file() {
     FS_Metadata *fs_meta = (FS_Metadata*)mapped_img;
 
     // Check data for first part_sector.txt
-    File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
+    File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta, 0);
     ASSERT(file_meta[0].first_data_sector == 0);
     ASSERT(file_meta[0].size == src_size);
     int cmp_result = strcmp(file_meta[0].name, dst_file);
     ASSERT(cmp_result == 0);
 
-    uint16_t *fat = get_fat(mapped_img, fs_meta);
+    uint16_t *fat = get_fat(mapped_img, fs_meta, 0);
     ASSERT(fat[0] == 0xffff);
 
-    uint8_t *data = get_data(mapped_img, fs_meta);
+    uint8_t *data = get_data(mapped_img, fs_meta, 0);
     cmp_result = memcmp(data, mapped_src, src_size);
     ASSERT(cmp_result == 0);
 
@@ -821,25 +821,25 @@ bool tfsfmt_test_write_files_one_file_one_tag() {
 
     FS_Metadata *fs_meta = (FS_Metadata*)mapped_img;
 
-    File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
+    File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta, 0);
     ASSERT(file_meta->first_data_sector == 0);
     ASSERT(file_meta->size == src_size);
     int cmp_result = strcmp(file_meta->name, dst_file);
     ASSERT(cmp_result == 0);
 
-    uint16_t *fat = get_fat(mapped_img, fs_meta);
+    uint16_t *fat = get_fat(mapped_img, fs_meta, 0);
     ASSERT(fat[0] == 0xffff);
     ASSERT(fat[1] == 0);
 
-    uint8_t *data = get_data(mapped_img, fs_meta);
+    uint8_t *data = get_data(mapped_img, fs_meta, 0);
     cmp_result = memcmp(data, mapped_src, src_size);
     ASSERT(cmp_result == 0);
 
-    Tag_Metadata *tag_meta = get_tag_metadata(mapped_img, fs_meta);
+    Tag_Metadata *tag_meta = get_tag_metadata(mapped_img, fs_meta, 0);
     cmp_result = strcmp(tag_meta->name, tag_name);
     ASSERT(cmp_result == 0);
 
-    Tag_File_Entry *tag_file = get_tag_file_array(mapped_img, fs_meta);
+    Tag_File_Entry *tag_file = get_tag_file_array(mapped_img, fs_meta, 0);
     ASSERT(tag_file->tag_id == 1);
     ASSERT(tag_file->file_id == 1);
 
@@ -888,18 +888,18 @@ bool tfsfmt_test_write_files_two_files_one_tag() {
     FS_Metadata *fs_meta = (FS_Metadata*)mapped_img;
 
     // Check data for many_sectors.txt
-    File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
+    File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta, 0);
     ASSERT(file_meta[0].first_data_sector == 0);
     ASSERT(file_meta[0].size == src_size_1);
     int cmp_result = strcmp(file_meta[0].name, dst_file_1);
     ASSERT(cmp_result == 0);
 
-    uint16_t *fat = get_fat(mapped_img, fs_meta);
+    uint16_t *fat = get_fat(mapped_img, fs_meta, 0);
     ASSERT(fat[0] == 1);
     ASSERT(fat[1] == 2);
     ASSERT(fat[2] == 0xffff);
 
-    uint8_t *data = get_data(mapped_img, fs_meta);
+    uint8_t *data = get_data(mapped_img, fs_meta, 0);
     cmp_result = memcmp(data, mapped_src_1, src_size_1);
     ASSERT(cmp_result == 0);
 
@@ -915,11 +915,11 @@ bool tfsfmt_test_write_files_two_files_one_tag() {
     cmp_result = memcmp(data + fs_meta->sector_size * 3, mapped_src_2, src_size_2);
     ASSERT(cmp_result == 0);
 
-    Tag_Metadata *tag_meta = get_tag_metadata(mapped_img, fs_meta);
+    Tag_Metadata *tag_meta = get_tag_metadata(mapped_img, fs_meta, 0);
     cmp_result = strcmp(tag_meta->name, tag_name);
     ASSERT(cmp_result == 0);
 
-    Tag_File_Entry *tag_file = get_tag_file_array(mapped_img, fs_meta);
+    Tag_File_Entry *tag_file = get_tag_file_array(mapped_img, fs_meta, 0);
     ASSERT(tag_file[0].tag_id == 1);
     ASSERT(tag_file[0].file_id == 1);
     ASSERT(tag_file[1].tag_id == 1);
@@ -965,27 +965,27 @@ bool tfsfmt_test_write_files_one_file_two_tags() {
 
     FS_Metadata *fs_meta = (FS_Metadata*)mapped_img;
 
-    File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
+    File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta, 0);
     ASSERT(file_meta->first_data_sector == 0);
     ASSERT(file_meta->size == src_size);
     int cmp_result = strcmp(file_meta->name, dst_file);
     ASSERT(cmp_result == 0);
 
-    uint16_t *fat = get_fat(mapped_img, fs_meta);
+    uint16_t *fat = get_fat(mapped_img, fs_meta, 0);
     ASSERT(fat[0] == 0xffff);
     ASSERT(fat[1] == 0);
 
-    uint8_t *data = get_data(mapped_img, fs_meta);
+    uint8_t *data = get_data(mapped_img, fs_meta, 0);
     cmp_result = memcmp(data, mapped_src, src_size);
     ASSERT(cmp_result == 0);
 
-    Tag_Metadata *tag_meta = get_tag_metadata(mapped_img, fs_meta);
+    Tag_Metadata *tag_meta = get_tag_metadata(mapped_img, fs_meta, 0);
     cmp_result = strcmp(tag_meta[0].name, tag_name_1);
     ASSERT(cmp_result == 0);
     cmp_result = strcmp(tag_meta[1].name, tag_name_2);
     ASSERT(cmp_result == 0);
 
-    Tag_File_Entry *tag_file = get_tag_file_array(mapped_img, fs_meta);
+    Tag_File_Entry *tag_file = get_tag_file_array(mapped_img, fs_meta, 0);
     ASSERT(tag_file[0].tag_id == 1);
     ASSERT(tag_file[0].file_id == 1);
     ASSERT(tag_file[1].tag_id == 2);
@@ -1038,18 +1038,18 @@ bool tfsfmt_test_write_files_two_files_two_tags() {
     FS_Metadata *fs_meta = (FS_Metadata*)mapped_img;
 
     // Check data for many_sectors.txt
-    File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
+    File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta, 0);
     ASSERT(file_meta[0].first_data_sector == 0);
     ASSERT(file_meta[0].size == src_size_1);
     int cmp_result = strcmp(file_meta[0].name, dst_file_1);
     ASSERT(cmp_result == 0);
 
-    uint16_t *fat = get_fat(mapped_img, fs_meta);
+    uint16_t *fat = get_fat(mapped_img, fs_meta, 0);
     ASSERT(fat[0] == 1);
     ASSERT(fat[1] == 2);
     ASSERT(fat[2] == 0xffff);
 
-    uint8_t *data = get_data(mapped_img, fs_meta);
+    uint8_t *data = get_data(mapped_img, fs_meta, 0);
     cmp_result = memcmp(data, mapped_src_1, src_size_1);
     ASSERT(cmp_result == 0);
 
@@ -1065,13 +1065,13 @@ bool tfsfmt_test_write_files_two_files_two_tags() {
     cmp_result = memcmp(data + fs_meta->sector_size * 3, mapped_src_2, src_size_2);
     ASSERT(cmp_result == 0);
 
-    Tag_Metadata *tag_meta = get_tag_metadata(mapped_img, fs_meta);
+    Tag_Metadata *tag_meta = get_tag_metadata(mapped_img, fs_meta, 0);
     cmp_result = strcmp(tag_meta[0].name, tag_name_1);
     ASSERT(cmp_result == 0);
     cmp_result = strcmp(tag_meta[1].name, tag_name_2);
     ASSERT(cmp_result == 0);
 
-    Tag_File_Entry *tag_file = get_tag_file_array(mapped_img, fs_meta);
+    Tag_File_Entry *tag_file = get_tag_file_array(mapped_img, fs_meta, 0);
     ASSERT(tag_file[0].tag_id == 1);
     ASSERT(tag_file[0].file_id == 1);
     ASSERT(tag_file[1].tag_id == 2);
@@ -1112,7 +1112,7 @@ bool tfsfmt_test_write_tag() {
 
     FS_Metadata *fs_meta = (FS_Metadata*)mapped_img;
 
-    Tag_Metadata *tag_meta = get_tag_metadata(mapped_img, fs_meta);
+    Tag_Metadata *tag_meta = get_tag_metadata(mapped_img, fs_meta, 0);
     int cmp_result = strcmp(tag_meta->name, tag_name);
     ASSERT(cmp_result == 0);
 
