@@ -1,15 +1,10 @@
 TagFS_FS_Metadata tfs_fs_meta = {0};
 uint8_t *tfs_sector_buffer = 0;
 
-// @HACK: We need to actually read the partition and find the offset
-// of the generic partition.
-uint32_t tfs_sector_offset = 0;
-
 bool tfs_init(/* @TODO: Pass in the IDE device */) {
     tfs_sector_buffer = memory_allocate(512);
-    tfs_sector_offset = 512;
     // Read the FS metadata sector.
-    ata_read_sector(IDE_BUS_PRIM, 0, tfs_sector_offset, tfs_sector_buffer);
+    ata_read_sector(IDE_BUS_PRIM, 0, 0, tfs_sector_buffer);
     memory_copy(&tfs_fs_meta, tfs_sector_buffer, sizeof(TagFS_FS_Metadata));
     return true;
 }
@@ -63,7 +58,7 @@ File_Metadata_Result tfs_get_file_metadata_from_name(String path, TagFS_File_Met
         sector_offset < tfs_fs_meta.file_meta_sector_count;
         sector_offset++
     ) {
-        ata_read_sector(IDE_BUS_PRIM, 0, file_meta_lba + tfs_sector_offset, tfs_sector_buffer);
+        ata_read_sector(IDE_BUS_PRIM, 0, file_meta_lba, tfs_sector_buffer);
         TagFS_File_Metadata *buf_file_meta = (TagFS_File_Metadata *)tfs_sector_buffer;
 
         for (size_t i = 0; i < file_meta_entries_per_sector; i++) {
@@ -115,8 +110,8 @@ bool tfs_read(String path, uint8_t *buffer, size_t read_size, size_t offset) {
     uint16_t *fats = memory_allocate(fats_size);
 
     uint32_t fat_lba = tfs_get_fat_lba();
-    ata_read_sector(IDE_BUS_PRIM, 0, fat_lba + tfs_sector_offset, fats);
-    ata_read_sector(IDE_BUS_PRIM, 0, fat_lba + 1 + tfs_sector_offset, fats + tfs_fs_meta.sector_size);
+    ata_read_sector(IDE_BUS_PRIM, 0, fat_lba, fats);
+    ata_read_sector(IDE_BUS_PRIM, 0, fat_lba + 1, fats + tfs_fs_meta.sector_size);
 
     TagFS_File_Metadata *file_meta = memory_allocate(sizeof(*file_meta));
     File_Metadata_Result meta_result = tfs_get_file_metadata_from_name(path, file_meta);
@@ -140,7 +135,7 @@ bool tfs_read(String path, uint8_t *buffer, size_t read_size, size_t offset) {
 
     uint32_t data_lba = tfs_get_data_lba();
     uint32_t sector_lba = data_lba + fat_index;
-    ata_read_sector(IDE_BUS_PRIM, 0, sector_lba + tfs_sector_offset, tfs_sector_buffer);
+    ata_read_sector(IDE_BUS_PRIM, 0, sector_lba, tfs_sector_buffer);
     if (read_size <= tfs_fs_meta.sector_size - byte_skip_count) {
         // We're just reading from one sector.
         memory_copy(buffer, tfs_sector_buffer + byte_skip_count, read_size);
@@ -168,7 +163,7 @@ bool tfs_read(String path, uint8_t *buffer, size_t read_size, size_t offset) {
             }
 
             sector_lba = data_lba + fat_index;
-            ata_read_sector(IDE_BUS_PRIM, 0, sector_lba + tfs_sector_offset, tfs_sector_buffer);
+            ata_read_sector(IDE_BUS_PRIM, 0, sector_lba, tfs_sector_buffer);
             memory_copy(buffer + buf_index, tfs_sector_buffer, bytes_to_read);
             buf_index += bytes_to_read;
         }
@@ -192,8 +187,8 @@ bool tfs_write(String path, uint8_t *buffer, size_t size, size_t offset) {
     uint16_t *fats = memory_allocate(fats_size);
 
     uint32_t fat_lba = tfs_get_fat_lba();
-    ata_read_sector(IDE_BUS_PRIM, 0, fat_lba + tfs_sector_offset, fats);
-    ata_read_sector(IDE_BUS_PRIM, 0, fat_lba + 1 + tfs_sector_offset, fats + tfs_fs_meta.sector_size);
+    ata_read_sector(IDE_BUS_PRIM, 0, fat_lba, fats);
+    ata_read_sector(IDE_BUS_PRIM, 0, fat_lba + 1, fats + tfs_fs_meta.sector_size);
 
     TagFS_File_Metadata *file_meta = memory_allocate(sizeof(*file_meta));
     File_Metadata_Result meta_result = tfs_get_file_metadata_from_name(path, file_meta);
@@ -246,9 +241,9 @@ bool tfs_write(String path, uint8_t *buffer, size_t size, size_t offset) {
     size_t data_lba = tfs_get_data_lba();
     if (size <= tfs_fs_meta.sector_size - byte_skip_count) {
         size_t sector_lba = data_lba + fat_index;
-        ata_read_sector(IDE_BUS_PRIM, 0, sector_lba + tfs_sector_offset, tfs_sector_buffer);
+        ata_read_sector(IDE_BUS_PRIM, 0, sector_lba, tfs_sector_buffer);
         memory_copy(&tfs_sector_buffer[byte_skip_count], buffer, size);
-        ata_write_sector(IDE_BUS_PRIM, 0, sector_lba + tfs_sector_offset, tfs_sector_buffer);
+        ata_write_sector(IDE_BUS_PRIM, 0, sector_lba, tfs_sector_buffer);
 
         if (fats[fat_index] == 0) {
             fats[fat_index] = 0xffff;
@@ -263,9 +258,9 @@ bool tfs_write(String path, uint8_t *buffer, size_t size, size_t offset) {
         // We're writing multiple sectors. Write as much of the current sector as we can.
         size_t first_sector_bytes = tfs_fs_meta.sector_size - byte_skip_count;
         size_t sector_lba = data_lba + fat_index;
-        ata_read_sector(IDE_BUS_PRIM, 0, sector_lba + tfs_sector_offset, tfs_sector_buffer);
+        ata_read_sector(IDE_BUS_PRIM, 0, sector_lba, tfs_sector_buffer);
         memory_copy(&tfs_sector_buffer[byte_skip_count], buffer, first_sector_bytes);
-        ata_write_sector(IDE_BUS_PRIM, 0, sector_lba + tfs_sector_offset, tfs_sector_buffer);
+        ata_write_sector(IDE_BUS_PRIM, 0, sector_lba, tfs_sector_buffer);
         buf_index += first_sector_bytes;
 
         // Now write the rest.
@@ -282,9 +277,9 @@ bool tfs_write(String path, uint8_t *buffer, size_t size, size_t offset) {
             }
 
             size_t sector_lba = data_lba + fat_index;
-            ata_read_sector(IDE_BUS_PRIM, 0, sector_lba + tfs_sector_offset, tfs_sector_buffer);
+            ata_read_sector(IDE_BUS_PRIM, 0, sector_lba, tfs_sector_buffer);
             memory_copy(tfs_sector_buffer, &buffer[buf_index], bytes_to_write);
-            ata_write_sector(IDE_BUS_PRIM, 0, sector_lba + tfs_sector_offset, tfs_sector_buffer);
+            ata_write_sector(IDE_BUS_PRIM, 0, sector_lba, tfs_sector_buffer);
             buf_index += bytes_to_write;
         }
 
@@ -294,9 +289,9 @@ bool tfs_write(String path, uint8_t *buffer, size_t size, size_t offset) {
     }
 
     // Write the file meta entry back to the disk.
-    ata_read_sector(IDE_BUS_PRIM, 0, meta_result.lba + tfs_sector_offset, tfs_sector_buffer);
+    ata_read_sector(IDE_BUS_PRIM, 0, meta_result.lba, tfs_sector_buffer);
     memory_copy(&tfs_sector_buffer[meta_result.offset], file_meta, sizeof(*file_meta));
-    ata_write_sector(IDE_BUS_PRIM, 0, meta_result.lba + tfs_sector_offset, tfs_sector_buffer);
+    ata_write_sector(IDE_BUS_PRIM, 0, meta_result.lba, tfs_sector_buffer);
 
 done:
     memory_free(file_meta);
@@ -318,7 +313,7 @@ bool tfs_make_new_file(String path) {
         sector_offset < tfs_fs_meta.file_meta_sector_count;
         sector_offset++
     ) {
-        ata_read_sector(IDE_BUS_PRIM, 0, file_meta_lba + tfs_sector_offset, tfs_sector_buffer);
+        ata_read_sector(IDE_BUS_PRIM, 0, file_meta_lba, tfs_sector_buffer);
         TagFS_File_Metadata *buf_file_meta = (TagFS_File_Metadata *)tfs_sector_buffer;
 
         for (size_t i = 0; i < file_meta_entries_per_sector; i++) {
@@ -327,7 +322,7 @@ bool tfs_make_new_file(String path) {
                 buf_file_meta->size = 0;
                 memory_copy(buf_file_meta->name, path.data, path.length);
                 buf_file_meta->name[path.length] = '\0';
-                ata_write_sector(IDE_BUS_PRIM, 0, file_meta_lba + tfs_sector_offset, tfs_sector_buffer);
+                ata_write_sector(IDE_BUS_PRIM, 0, file_meta_lba, tfs_sector_buffer);
                 return true;
             }
             file_count++;
