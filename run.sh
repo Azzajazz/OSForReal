@@ -15,17 +15,14 @@ then
     binary="os-for-real-test"
 fi
 
-# Set up the hard drive.
-boot_partition_size=262144
-hard_disk_size=1048576
 
+# Set up the hard drive.
 mkdir -p devices
 touch ./devices/hard_drive
-truncate -s $hard_disk_size ./devices/hard_drive
-./tagfs/tfsfmt/build/tfsfmt format ./devices/hard_drive -byte-offset $boot_partition_size
+truncate -s 512000 ./devices/hard_drive
+./tagfs/tfsfmt/build/tfsfmt format ./devices/hard_drive
 echo "hello" > ./devices/hello.txt
-./tagfs/tfsfmt/build/tfsfmt write-files ./devices/hard_drive -byte-offset $boot_partition_size \
-    -file ./devices/hello.txt
+./tagfs/tfsfmt/build/tfsfmt write-files ./devices/hard_drive -file ./devices/hello.txt
 
 qemu-system-i386 -nographic \
     -kernel build/$binary \

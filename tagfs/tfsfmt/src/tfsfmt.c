@@ -94,15 +94,6 @@ bool link_tag_to_file(
     return false;
 }
 
-typedef struct {
-    int byte_offset;
-} Common_Options;
-
-void add_common_options(Common_Options *options) {
-    options->byte_offset = 0;
-    flags_add_int_flag(&options->byte_offset, "-byte-offset", "byte offset of the file metadata sector.", false);
-}
-
 
 
 // --------------------------------------------------
@@ -110,8 +101,6 @@ void add_common_options(Common_Options *options) {
 // --------------------------------------------------
 
 typedef struct {
-    Common_Options common;
-
     int sector_count;
     int sector_size;
 
@@ -132,8 +121,6 @@ void parse_format_options(Format_Options *options, int argc, char **argv) {
     options->tag_file_sector_count = 10;
     options->fat_sector_count = 2;
     options->image_name = NULL;
-
-    add_common_options(&options->common);
 
     // Parse the given options.
     flags_add_cstr_positional(&options->image_name, "image_name", "name of the image to format");
@@ -176,7 +163,7 @@ void format_image(int argc, char **argv) {
     memset(mapped_img, 0, options.sector_count * options.sector_size);
 
     // Write the FS metadata block.
-    FS_Metadata *fs_meta = get_fs_metadata(mapped_img, options.common.byte_offset);
+    FS_Metadata *fs_meta = (FS_Metadata*)mapped_img;
     fs_meta->version = 1;
     fs_meta->sector_count = options.sector_count;
     fs_meta->sector_size = options.sector_size;
@@ -199,7 +186,6 @@ void format_image(int argc, char **argv) {
 // --------------------------------------------------
 
 typedef struct {
-    Common_Options common;
     char *file_specs[32];
     int file_specs_parsed;
     char *tags[32];
@@ -209,8 +195,6 @@ typedef struct {
 } Write_Files_Options;
 
 void parse_write_files_options(Write_Files_Options *options, int argc, char **argv) {
-    add_common_options(&options->common);
-
     flags_add_cstr_positional(&options->image_name, "image_name", "name of the image to format");
     flags_add_cstr_array_flag(options->file_specs, &options->file_specs_parsed, ARRAY_LEN(options->file_specs), "-file", "source path and destination name of the file in `<source path>:<destination name>` format", true);
     // @TODO: This is a lot of arguments now. Not sure I like it.
@@ -258,7 +242,7 @@ void write_files(int argc, char **argv) {
     }
 
     FS_Metadata fs_meta_for_size;
-    read_fs_metadata(&fs_meta_for_size, fd, options.common.byte_offset);
+    read_fs_metadata(&fs_meta_for_size, fd);
 
     uint8_t *mapped_img = mmap(NULL, fs_meta_for_size.sector_count * fs_meta_for_size.sector_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (mapped_img == MAP_FAILED) {
@@ -266,12 +250,12 @@ void write_files(int argc, char **argv) {
         exit(FAIL_GENERIC);
     }
 
-    FS_Metadata *fs_meta = get_fs_metadata(mapped_img, options.common.byte_offset);
-    File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta, options.common.byte_offset);
-    Tag_Metadata *tag_meta = get_tag_metadata(mapped_img, fs_meta, options.common.byte_offset);
-    Tag_File_Entry *tag_file = get_tag_file_array(mapped_img, fs_meta, options.common.byte_offset);
-    uint16_t *fat = get_fat(mapped_img, fs_meta, options.common.byte_offset);
-    uint8_t *data = get_data(mapped_img, fs_meta, options.common.byte_offset);
+    FS_Metadata *fs_meta = (FS_Metadata*)mapped_img;
+    File_Metadata *file_meta = get_file_metadata(mapped_img, fs_meta);
+    Tag_Metadata *tag_meta = get_tag_metadata(mapped_img, fs_meta);
+    Tag_File_Entry *tag_file = get_tag_file_array(mapped_img, fs_meta);
+    uint16_t *fat = get_fat(mapped_img, fs_meta);
+    uint8_t *data = get_data(mapped_img, fs_meta);
 
     for (int i = 0; i < options.file_specs_parsed; ++i) {
         char *src_file_path = strtok(options.file_specs[i], ":");
@@ -387,15 +371,11 @@ fail:
 // --------------------------------------------------
 
 typedef struct {
-    Common_Options common;
-
     char *image_name;
     char *tag_name;
 } Write_Tag_Options;
 
 void parse_write_tag_options(Write_Tag_Options *options, int argc, char **argv) {
-    add_common_options(&options->common);
-
     flags_add_cstr_positional(&options->image_name, "image_name", "name of the image to format");
     flags_add_cstr_flag(&options->tag_name, "-tag", "name of the tag to write", true);
 
@@ -423,7 +403,7 @@ void write_tag(int argc, char **argv) {
     }
 
     FS_Metadata fs_meta;
-    read_fs_metadata(&fs_meta, fd, options.common.byte_offset);
+    read_fs_metadata(&fs_meta, fd);
 
     uint8_t *mapped_img = mmap(NULL, fs_meta.sector_count * fs_meta.sector_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (mapped_img == MAP_FAILED) {
@@ -432,7 +412,7 @@ void write_tag(int argc, char **argv) {
     }
 
     // Find the first empty tag metadata entry
-    Tag_Metadata *tag_meta = get_tag_metadata(mapped_img, &fs_meta, options.common.byte_offset);
+    Tag_Metadata *tag_meta = get_tag_metadata(mapped_img, &fs_meta);
     while (tag_metadata_entry_is_free(tag_meta)) {
         tag_meta++;
     }

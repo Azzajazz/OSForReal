@@ -43,54 +43,47 @@ typedef struct PACKED {
     uint16_t file_id;
 } Tag_File_Entry;
 
-void read_fs_metadata(FS_Metadata *fs_meta, int fd, int byte_offset) {
+void read_fs_metadata(FS_Metadata *fs_meta, int fd) {
     // @TODO: Read until we completely fill up the FS_Metadata
-    lseek(fd, byte_offset, SEEK_SET);
+    lseek(fd, 0, SEEK_SET);
     read(fd, fs_meta, sizeof(*fs_meta));
 }
 
-FS_Metadata *get_fs_metadata(uint8_t *base, int byte_offset) {
-    return (FS_Metadata *)(base + byte_offset);
+File_Metadata *get_file_metadata(uint8_t *base, FS_Metadata *fs_meta) {
+    return (File_Metadata*)(base + fs_meta->sector_size);
 }
 
-File_Metadata *get_file_metadata(uint8_t *base, FS_Metadata *fs_meta, int byte_offset) {
-    return (File_Metadata*)(base + fs_meta->sector_size + byte_offset);
-}
-
-Tag_Metadata *get_tag_metadata(uint8_t *base, FS_Metadata *fs_meta, int byte_offset) {
+Tag_Metadata *get_tag_metadata(uint8_t *base, FS_Metadata *fs_meta) {
     return (Tag_Metadata*)(
         base + (
             1 +
             fs_meta->file_meta_sector_count
-        ) * fs_meta->sector_size +
-        byte_offset
+        ) * fs_meta->sector_size
     );
 }
 
-Tag_File_Entry *get_tag_file_array(uint8_t *base, FS_Metadata *fs_meta, int byte_offset) {
+Tag_File_Entry *get_tag_file_array(uint8_t *base, FS_Metadata *fs_meta) {
     return (Tag_File_Entry*)(
         base + (
             1 +
             fs_meta->file_meta_sector_count +
             fs_meta->tag_meta_sector_count
-        ) * fs_meta->sector_size +
-        byte_offset
+        ) * fs_meta->sector_size
     );
 }
 
-uint16_t *get_fat(uint8_t *base, FS_Metadata *fs_meta, int byte_offset) {
+uint16_t *get_fat(uint8_t *base, FS_Metadata *fs_meta) {
     return (uint16_t*)(
         base + (
             1 +
             fs_meta->file_meta_sector_count +
             fs_meta->tag_meta_sector_count +
             fs_meta->tag_file_sector_count
-        ) * fs_meta->sector_size +
-        byte_offset
+        ) * fs_meta->sector_size
     );
 }
 
-uint8_t *get_data(uint8_t *base, FS_Metadata *fs_meta, int byte_offset) {
+uint8_t *get_data(uint8_t *base, FS_Metadata *fs_meta) {
     return (
         base + (
             1 +
@@ -98,8 +91,7 @@ uint8_t *get_data(uint8_t *base, FS_Metadata *fs_meta, int byte_offset) {
             fs_meta->tag_meta_sector_count +
             fs_meta->tag_file_sector_count +
             fs_meta->fat_sector_count
-        ) * fs_meta->sector_size +
-        byte_offset
+        ) * fs_meta->sector_size
     );
 }
 
