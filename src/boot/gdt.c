@@ -29,14 +29,14 @@ typedef struct PACKED {
 
 
 
-struct PACKED {
+BOOT_DATA struct PACKED {
     uint16_t size;
     uint32_t offset;
 } gdtr;
 
-Segment_Descriptor gdt[5];
+BOOT_DATA Segment_Descriptor gdt[5];
 
-Segment_Descriptor gdt_create_descriptor(
+BOOT_FN Segment_Descriptor gdt_create_descriptor(
     uint32_t base,
     uint32_t limit,
     uint8_t access_byte,
@@ -54,7 +54,7 @@ Segment_Descriptor gdt_create_descriptor(
     return descriptor;
 }
 
-void gdt_init(void) {
+BOOT_FN void gdt_init(void) {
     // Null descriptor.
     gdt[0] = (Segment_Descriptor){0};
 

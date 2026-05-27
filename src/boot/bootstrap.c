@@ -41,6 +41,8 @@ BOOT_FN void boot_memory_copy(void *dst, void *src, size_t size) {
 }
 
 BOOT_FN void bootstrap(Multiboot_Info *boot_info) {
+    gdt_init();
+
     // Copy the multiboot info and mmap information to a known location before setting
     // up paging.
     Multiboot_Info *b_info = (Multiboot_Info *)__boot_end;
@@ -78,7 +80,7 @@ BOOT_FN void bootstrap(Multiboot_Info *boot_info) {
     }
 
     // Initialize the paging.
-    asm(
+    asm volatile(
         "mov cr3, %0\t\n"
 
         "mov eax, cr0\t\n"

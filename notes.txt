@@ -1,0 +1,32 @@
+I want user space drivers that are shared libraries. User programs can link to them and that's just it.
+
+The problem is that there are two different ways that I want to handle state in dynamic libraries:
+    1. Load a separate copy per loaded library. This is very important for process isolation, for example:
+        - Process 1 and process 2 loads some_lib.so. Changes to state stored in some_lib.so by process 1 should not be visible to process 2.
+    2. Load a single copy that is shared between processes dynamically linking that library. An example of when you would want to do this is
+       in a driver that has an exclusive access lock. That lock should be unique and shared in order to uphold exclusive access guarantees.
+
+This is pointing to one of the following solutions:
+    - Dynamic libraries can specify whether they want singleton or per-process linking. You could even do this on a per-object basis.
+    - Have APIs for allocating singleton resources.
+    - Treat a hard-coded set of dynamic libraries as singleton linked. (Don't like this.)
+
+IMPORTANT:
+- Singleton state is inherently untrustworthy if mapped to arbitrary user processes, so putting some synchronization data in there may not be a good idea.
+
+
+
+
+
+
+
+
+
+
+
+
+- Memory mapped files...
+    - Process reads file
+
+
+My intuition says that this stuff is possible and there's a reasonably simple solution.

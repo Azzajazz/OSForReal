@@ -163,6 +163,8 @@ void kernel_main(Multiboot_Info *boot_info) {
     fmt_print("size: %d\n", file_meta.size);
     fmt_print("name: %s\n", file_meta.name);
     fmt_print("\n");
+
+    //asm volatile ("sysenter\n");
     
     for(;;);
 }
