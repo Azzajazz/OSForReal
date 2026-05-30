@@ -1,0 +1,6 @@
+#include "../arch/x86/boot/multiboot.h"
+#include "../hal/hal_def.h"
+#include "../arch/x86/instructions_def.h"
+#include "../std/std_def.h"
+#include "page_frame_allocator_def.h"
+#include "../fs/fs_def.h"

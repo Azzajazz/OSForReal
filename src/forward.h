@@ -1,6 +1,0 @@
-#include "boot/multiboot.h"
-#include "hal/hal_def.h"
-#include "platform/x86_def.h"
-#include "std/std_def.h"
-#include "page_frame_allocator_def.h"
-#include "fs/fs_def.h"

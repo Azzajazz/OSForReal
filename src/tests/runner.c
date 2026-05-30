@@ -1,4 +1,4 @@
-#include "../kernel.c"
+#include "../kernel/kernel.c"
 
 typedef bool (*Test_Fn)();
 

@@ -1,4 +1,4 @@
-#include "../common.h"
+#include "../../../common.h"
 
 #define BOOT_FN __attribute__((section(".boot_text")))
 #define BOOT_DATA __attribute__((section(".boot_data")))
@@ -17,7 +17,7 @@ extern char __kernel_phys_end[];
 
 #include "multiboot.h"
 #include "gdt.c"
-#include "../paging.h"
+#include "../../../paging.h"
 
 BOOT_DATA ALIGN(PAGE_SIZE) uint32_t page_directory[1024] = {0};
 BOOT_DATA ALIGN(PAGE_SIZE) uint32_t low_page_table[1024] = {0};

@@ -1,4 +1,4 @@
-#include "common.h"
+#include "../common.h"
 #include "forward.h"
 
 void assert(char *file, int line, const char *func, bool condition, char *message);
@@ -13,10 +13,10 @@ extern char __kernel_phys_end[];
 extern char __kernel_start[];
 extern char __kernel_end[];
 
-#include "platform/x86.c"
-#include "hal/hal.c"
-#include "std/std.c"
-#include "fs/fs.c"
+#include "../arch/x86/instructions.c"
+#include "../hal/hal.c"
+#include "../std/std.c"
+#include "../fs/fs.c"
 #include "page_frame_allocator.c"
 
 
