@@ -14,9 +14,10 @@ extern char __kernel_start[];
 extern char __kernel_end[];
 
 #include "../arch/x86/instructions.c"
+#include "../arch/x86/interrupts.c"
 #include "../hal/hal.c"
 #include "../std/std.c"
-#include "../fs/fs.c"
+#include "fs/fs.c"
 #include "page_frame_allocator.c"
 
 

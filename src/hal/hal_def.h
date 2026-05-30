@@ -1,6 +1,5 @@
 #include "vga_def.h"
 #include "serial_def.h"
 #include "pic_def.h"
-#include "interrupts_def.h"
 #include "pci_def.h"
 #include "ata_def.h"
