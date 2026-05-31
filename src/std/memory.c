@@ -6,8 +6,6 @@ typedef struct Memory_Segment {
 Memory_Segment *free_segments_head = 0;
 void *next_page_virt_addr = 0;
 
-bool pfa_commit_page(void *virt_addr);
-
 bool memory_init() {
     next_page_virt_addr = (void *)(__kernel_start + MAX_KERNEL_SIZE);
     return true;
@@ -27,7 +25,7 @@ void *memory_allocate(size_t size) {
     size_t true_size = align_forward(size + sizeof(size_t), sizeof(size_t));
 
     if (free_segments_head == 0) {
-        bool success = pfa_commit_page(next_page_virt_addr);
+        bool success = pfa_commit_page(next_page_virt_addr, PP_KERNEL);
         if (!success) return 0;
         free_segments_head = next_page_virt_addr;
         free_segments_head->next = 0;
@@ -59,7 +57,7 @@ void *memory_allocate(size_t size) {
         ASSERT(prev_segment != 0, "prev_segment should be non-zero.");
         size_t last_segment_length = prev_segment->length;
         while (last_segment_length < true_size) {
-            bool success = pfa_commit_page(next_page_virt_addr);
+            bool success = pfa_commit_page(next_page_virt_addr, PP_KERNEL);
             if (!success) return 0;
             next_page_virt_addr += PAGE_SIZE;
             last_segment_length += PAGE_SIZE;

@@ -1,9 +1,9 @@
 - Run a process in user space
     - Page isolation between kernel and user space.
-        - Implement commiting pages at different privilege levels
+        X Implement commiting pages at different privilege levels
         - Place user space code in a separate region to kernel code
-            - Either modify the kernel linker script to put the user code in a separate section, or
-            - Implement some executable loading.
+            - Add user space section to the kernel.
+            - Modify linker script so that user space is in a separate pages region.
     - User space process address space isolation.
     - User space memory allocation.
     - Switch to user space.

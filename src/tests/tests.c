@@ -30,7 +30,7 @@ bool test_page_frame_allocator_tables_index_to_virt() {
 
 bool test_page_frame_allocator_commit_one_page() {
     void *virt = (void *)0xC0800000;
-    pfa_commit_page(virt);
+    pfa_commit_page(virt, PP_KERNEL);
 
     size_t page_tables_index = mapped_virt_to_pfa_tables_index(virt);
     Phys_Addr page_table_phys = pfa_tables_index_to_table_phys(page_tables_index);
@@ -53,13 +53,13 @@ bool test_page_frame_allocator_resets_fully_after_uncommit_all() {
 
     // Two in the same page table.
     void *virt1 = (void *)0xC0800000;
-    pfa_commit_page(virt1);
+    pfa_commit_page(virt1, PP_KERNEL);
     void *virt2 = (void *)0xC0801000;
-    pfa_commit_page(virt2);
+    pfa_commit_page(virt2, PP_KERNEL);
 
     // One in a different page table.
     void *virt3 = (void *)0xC0C00000;
-    pfa_commit_page(virt3);
+    pfa_commit_page(virt3, PP_KERNEL);
 
     pfa_uncommit_all();
 
@@ -89,13 +89,13 @@ bool test_page_frame_allocator_resets_fully_after_uncommit_all() {
 bool test_page_frame_allocator_can_commit_multiple_pages() {
     // Two in the same page table.
     void *virt1 = (void *)0xC0800000;
-    pfa_commit_page(virt1);
+    pfa_commit_page(virt1, PP_KERNEL);
     void *virt2 = (void *)0xC0801000;
-    pfa_commit_page(virt2);
+    pfa_commit_page(virt2, PP_KERNEL);
 
     // One in a different page table.
     void *virt3 = (void *)0xC0C00000;
-    pfa_commit_page(virt3);
+    pfa_commit_page(virt3, PP_KERNEL);
 
     size_t low_page_tables_index = mapped_virt_to_pfa_tables_index(virt1);
     Phys_Addr low_page_table_phys = pfa_tables_index_to_table_phys(low_page_tables_index);
@@ -120,7 +120,7 @@ bool test_page_frame_allocator_can_commit_multiple_pages() {
 
 bool test_page_frame_allocator_commit_more_than_32_pages_bitmap_is_correct() {
     for (size_t virt_s = 0xC0800000; virt_s < 0xC0800000 + 33 * PAGE_SIZE; virt_s += PAGE_SIZE) {
-        pfa_commit_page((void *)virt_s);
+        pfa_commit_page((void *)virt_s, PP_KERNEL);
     }
 
     TEST_ASSERT(pfa_page_bitmap[0] == 0xffffffff);
@@ -189,7 +189,7 @@ bool test_page_frame_allocator_commit_fails_when_no_pages_left() {
     uint32_t *old_page_bitmap = memory_allocate(sizeof(pfa_page_bitmap));
     memory_copy(old_page_bitmap, pfa_page_bitmap, sizeof(pfa_page_bitmap));
     memory_fill(pfa_page_bitmap, sizeof(pfa_page_bitmap), 0xFF);
-    bool success = pfa_commit_page((void *)0xC0800000);
+    bool success = pfa_commit_page((void *)0xC0800000, PP_KERNEL);
     memory_copy(pfa_page_bitmap, old_page_bitmap, sizeof(pfa_page_bitmap));
     memory_free(old_page_bitmap);
 

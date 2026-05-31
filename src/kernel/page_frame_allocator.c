@@ -87,7 +87,7 @@ size_t mapped_virt_to_page_table_entry(void *virt) {
     return ((size_t)virt >> 12) & 0x3FF;
 }
 
-bool pfa_commit_page(void *virt_addr) {
+bool pfa_commit_page(void *virt_addr, Page_Privilege privilege) {
     size_t virt_addr_s = (size_t)virt_addr;
     ASSERT((virt_addr_s & 0xfff) == 0, "virt_addr is not page aligned.");
 
@@ -112,10 +112,14 @@ bool pfa_commit_page(void *virt_addr) {
     size_t page_table_entry = mapped_virt_to_page_table_entry(virt_addr);
     size_t pfa_page_tables_index = mapped_virt_to_pfa_tables_index(virt_addr);
     Phys_Addr page_table_phys = pfa_tables_index_to_table_phys(pfa_page_tables_index);
-    page_directory[page_directory_entry] = page_table_phys.value |
-        PAGE_DIR_PRESENT | PAGE_DIR_RW | PAGE_DIR_ACCESS_ALL | PAGE_DIR_ACCESSED;
-    pfa_page_tables[pfa_page_tables_index][page_table_entry] = page_frame |
-        PAGE_TABLE_PRESENT | PAGE_TABLE_RW | PAGE_TABLE_ACCESS_ALL | PAGE_TABLE_ACCESSED;
+    uint8_t page_dir_flags = PAGE_DIR_PRESENT | PAGE_DIR_RW | PAGE_DIR_ACCESSED;
+    uint8_t page_table_flags = PAGE_TABLE_PRESENT | PAGE_TABLE_RW | PAGE_TABLE_ACCESSED;
+    if (privilege == PP_USER) {
+        page_dir_flags |= PAGE_DIR_ACCESS_ALL;
+        page_table_flags |= PAGE_TABLE_ACCESS_ALL;
+    }
+    page_directory[page_directory_entry] = page_table_phys.value | page_dir_flags;
+    pfa_page_tables[pfa_page_tables_index][page_table_entry] = page_frame | page_table_flags;
 
     return true;
 }
