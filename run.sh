@@ -7,7 +7,7 @@ binary="os-for-real"
 
 if [[ $OS_MODE = "debug" ]]
 then
-    extra_flags="-s -S -M smm=off -d int -D ./qemu.log"
+    extra_flags="-s -S -M smm=off -d int"
 fi
 
 if [[ $OS_TEST = 1 ]]

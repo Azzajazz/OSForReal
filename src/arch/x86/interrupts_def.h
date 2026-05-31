@@ -7,11 +7,29 @@ typedef struct PACKED {
 } Gate_Descriptor;
 
 typedef struct {
-    uint32_t ip;
-    uint32_t cs;
-    uint32_t flags;
-    uint32_t sp;
-    uint32_t ss;
+    // These fields are saved by the interrupt stub.
+    uint32_t edi;
+    uint32_t esi;
+    uint32_t ebp;
+    uint32_t ebx;
+    uint32_t edx;
+    uint32_t ecx;
+    uint32_t eax;
+
+    // Fields below here are pushed by the CPU on interrupt.
+
+    // Set to 0 if no error code.
+    uint16_t error_code;
+    uint16_t __error_code_high;
+    uint32_t eip;
+    uint16_t cs;
+    uint16_t __cs_high;
+    uint32_t eflags;
+
+    // These are defined only for interrupts occuring while in user space.
+    uint32_t esp;
+    uint16_t ss;
+    uint16_t __ss_high;
 } Interrupt_Frame;
 
 #define IDT_GATE_TASK 0x5
@@ -34,4 +52,4 @@ struct PACKED {
 typedef void (*Registered_Handler)(Interrupt_Frame *frame);
 
 void interrupts_init();
-void idt_register_handler(int vector, Registered_Handler handler);
+void interrupts_register_handler(int vector, Registered_Handler handler);
