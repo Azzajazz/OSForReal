@@ -1,3 +1,16 @@
+- Run a process in user space
+    - Page isolation between kernel and user space.
+        - Implement commiting pages at different privilege levels
+        - Place user space code in a separate region to kernel code
+            - Either modify the kernel linker script to put the user code in a separate section, or
+            - Implement some executable loading.
+    - User space process address space isolation.
+    - User space memory allocation.
+    - Switch to user space.
+    - Syscall interface.
+    - Statically compile a driver into user space program.
+    - Write a user space shell.
+
 - PCI
     X Print vendor ids of existing devices.
     - Make a driver hookup mechanism for PCI devices.
