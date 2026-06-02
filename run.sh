@@ -22,7 +22,9 @@ touch ./devices/hard_drive
 truncate -s 512000 ./devices/hard_drive
 ./tagfs/tfsfmt/build/tfsfmt format ./devices/hard_drive
 echo "hello" > ./devices/hello.txt
-./tagfs/tfsfmt/build/tfsfmt write-files ./devices/hard_drive -file ./devices/hello.txt
+./tagfs/tfsfmt/build/tfsfmt write-files ./devices/hard_drive \
+    -file ./devices/hello.txt \
+    -file ./src/userspace/build/userspace
 
 qemu-system-i386 -nographic \
     -kernel build/$binary \

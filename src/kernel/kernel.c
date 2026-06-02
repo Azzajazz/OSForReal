@@ -19,6 +19,7 @@ extern char __kernel_end[];
 #include "../std/std.c"
 #include "fs/fs.c"
 #include "page_frame_allocator.c"
+#include "elf.c"
 
 
 void assert(char *file, int line, const char *func, bool condition, char *message) {
@@ -108,7 +109,6 @@ void kernel_main(Multiboot_Info *boot_info) {
     fmt_print("bar4: %x\n", bar4);
 
     fmt_print("\n");
-    uint8_t *data = memory_allocate(512);
     /*
     fmt_print("Before write:\n");
     ata_read_sector(IDE_BUS_PRIM, 0, 0, data);
@@ -130,6 +130,7 @@ void kernel_main(Multiboot_Info *boot_info) {
     }
     */
 
+    /*
     fmt_print("Attributes of hello.txt:\n");
     TagFS_File_Metadata file_meta;
     tfs_get_file_attributes(str_literal("hello.txt"), &file_meta);
@@ -164,8 +165,90 @@ void kernel_main(Multiboot_Info *boot_info) {
     fmt_print("size: %d\n", file_meta.size);
     fmt_print("name: %s\n", file_meta.name);
     fmt_print("\n");
+    */
 
-    //asm volatile ("sysenter\n");
+    TagFS_File_Metadata file_meta;
+    tfs_get_file_attributes(str_literal("userspace"), &file_meta);
+    uint8_t *data = memory_allocate(file_meta.size);
+    tfs_read(str_literal("userspace"), data, file_meta.size, 0);
+
+    ELF_File_Header *header = (ELF_File_Header *)data;
+    fmt_print("Identifier:\n");
+    fmt_print("  magic: %hhd %hhd %hhd %hhd\n",
+        header->ident.magic[0], header->ident.magic[1], header->ident.magic[2], header->ident.magic[3]);
+    fmt_print("  class: %hhd\n", header->ident.class);
+    fmt_print("  data_encoding: %hhd\n", header->ident.data_encoding);
+    fmt_print("  version: %hhd\n", header->ident.version);
+    fmt_print("  os_abi: %hhd\n", header->ident.os_abi);
+    fmt_print("  abi_version: %hhd\n", header->ident.abi_version);
+
+    fmt_print("The rest:\n");
+    fmt_print("  type: %hd\n", header->type);
+    fmt_print("  machine: %hd\n", header->machine);
+    fmt_print("  version: %d\n", header->version);
+    fmt_print("  entry: %x\n", header->entry);
+    fmt_print("  prog_header_offset: %d\n", header->prog_header_offset);
+    fmt_print("  section_header_offset: %d\n", header->section_header_offset);
+    fmt_print("  flags: %x\n", header->flags);
+    fmt_print("  elf_header_size: %hd\n", header->elf_header_size);
+    fmt_print("  prog_header_entry_size: %hd\n", header->prog_header_entry_size);
+    fmt_print("  prog_header_count: %hd\n", header->prog_header_count);
+    fmt_print("  section_header_entry_size: %hd\n", header->section_header_entry_size);
+    fmt_print("  section_header_count: %hd\n", header->section_header_count);
+    fmt_print("  section_header_names_index: %hd\n", header->section_header_names_index);
+    fmt_print("\n");
+
+    ELF32_Section_Header *section_header = (ELF32_Section_Header *)(data + header->section_header_offset);
+    ELF32_Section_Header section_names_header = section_header[header->section_header_names_index];
+    char *section_names = (char *)(data + section_names_header.offset);
+
+    ELF32_Section_Header text_section_header = section_header[1];
+    fmt_print("Text section header:\n");
+    fmt_print("  name_index: %d\n", text_section_header.name);
+    fmt_print("  name: %s\n", section_names + text_section_header.name);
+    fmt_print("  type: %d\n", text_section_header.type);
+    fmt_print("  flags: %x\n", text_section_header.flags);
+    fmt_print("  address: %x\n", text_section_header.address);
+    fmt_print("  offset: %d\n", text_section_header.offset);
+    fmt_print("  size: %d\n", text_section_header.size);
+    fmt_print("  link: %d\n", text_section_header.link);
+    fmt_print("  info: %d\n", text_section_header.info);
+    fmt_print("  address_align: %d\n", text_section_header.address_align);
+    fmt_print("  entry_size: %d\n", text_section_header.entry_size);
+    fmt_print("Flags:\n");
+    fmt_print("  write: %hhd\n", text_section_header.flags.write);
+    fmt_print("  alloc: %hhd\n", text_section_header.flags.alloc);
+    fmt_print("  exec_instr: %hhd\n", text_section_header.flags.exec_instr);
+    fmt_print("  merge: %hhd\n", text_section_header.flags.merge);
+    fmt_print("  strings: %hhd\n", text_section_header.flags.strings);
+    fmt_print("  info_link: %hhd\n", text_section_header.flags.info_link);
+    fmt_print("  link_order: %hhd\n", text_section_header.flags.link_order);
+    fmt_print("  os_nonconforming: %hhd\n", text_section_header.flags.os_nonconforming);
+    fmt_print("  group: %hhd\n", text_section_header.flags.group);
+    fmt_print("  thread_local_storage: %hhd\n", text_section_header.flags.thread_local_storage);
+    fmt_print("  os: %hhd\n", text_section_header.flags.os);
+    fmt_print("  proc: %hhd\n", text_section_header.flags.proc);
+    fmt_print("\n");
+
+    ELF32_Program_Header *program_header = (ELF32_Program_Header *)(data + header->prog_header_offset);
+    fmt_print("Program header:\n");
+    fmt_print("  offset: %d\n", program_header->offset);
+    fmt_print("  virtual_address: %d\n", program_header->virtual_address);
+    fmt_print("  physical_address: %d\n", program_header->physical_address);
+    fmt_print("  file_size: %d\n", program_header->file_size);
+    fmt_print("  memory_size: %d\n", program_header->memory_size);
+    fmt_print("  flags: %d\n", program_header->flags);
+    fmt_print("  align: %d\n", program_header->align);
+    fmt_print("Flags:\n");
+    fmt_print("  executable: %hhd\n", program_header->flags.executable);
+    fmt_print("  writeable: %hhd\n", program_header->flags.writeable);
+    fmt_print("  readable: %hhd\n", program_header->flags.readable);
+    fmt_print("  proc: %hhd\n", program_header->flags.proc);
+
+
+    ASSERT(header->ident.class == EC_32, "Unsupported ELF class.");
+    ASSERT(header->ident.data_encoding == EDE_LSB, "Unsupported ELF data encoding.");
+    memory_free(data);
     
     for(;;);
 }

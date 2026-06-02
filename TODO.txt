@@ -1,10 +1,11 @@
 - Run a process in user space
     - Page isolation between kernel and user space.
         X Implement commiting pages at different privilege levels
-        - Place user space code in a separate region to kernel code
-            - Add user space section to the kernel.
-            - Modify linker script so that user space is in a separate pages region.
-    - User space process address space isolation.
+        - User space process address space isolation (give it it's own page directory).
+    - Make a user space program.
+        X Cross compile user code.
+        - Put in the file system.
+        - Load from kernel.
     - User space memory allocation.
     - Switch to user space.
     - Syscall interface.
@@ -40,6 +41,8 @@
         - (Hard) Tests can be discovered by searching the elf headers. This will give us the option of writing unit tests for modules in the module itself (although I don't think I want to do that).
     - warning: ./build/os-for-real.elf has a LOAD segment with RWX permissions
     - Use QEMU port 0xE9 for the debug console instead of serial output (no baud rate throttling).
+    - zero-padding and space-padding for fmt_print.
+    - Growable arrays? C doesn't have generics, so we will need to work out how to do this in as type-safe a way as possible.
 
 --------------------------------------------------------------------------------
 Toolchain:
